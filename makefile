@@ -1,7 +1,7 @@
 make all:
-	gcc bankingServer.c 9999
-	gcc bankingClient.c cp.cs.rutgers.edu 9999
+	gcc bankingServer.c -pthread -o bankingServer
+	gcc bankingClient.c -o bankingClient
 make debug:
-	gcc bankingServer.c -g
-	gcc bankingClient.c -g
+	gcc bankingServer.c -g -pthread -o debugServer
+	gcc bankingClient.c -g -o debugClient
 make clean:
