@@ -7,6 +7,7 @@
 #include <netinet/in.h> 
 #include <search.h>
 #include <pthread.h>
+#include <semaphore.h>
 #include "banking.h"
 #include <errno.h>
 
@@ -18,7 +19,8 @@ void* clientSession(void* args);
 int port;	//Port number program is listening on.
 char** accountNames; //List of account names used when printing out diagnostic information.
 int numAccounts;	//Used so that we know where to put the new account in accountNames upon creation.
-pthread_mutex_t* accountCreateLock;		//Mutex on account creation.
+sem_t* accountCreateLock;		//Semaphore on account creation.
+int stopAndHammerTime;				//Boolean variable that will force all clients to close when shutdown command is received.
 
 //Thread function to accept any incoming connections
 void* listenConnections(void* ptrListenSock){
@@ -70,7 +72,6 @@ void* listenConnections(void* ptrListenSock){
 		printf("Accepted new client connection.\n");
 		//Starting new thread for client session:
 		pthread_t* newClientThread = (pthread_t*)malloc(sizeof(pthread_t));
-		//SELF NOTE/TODO: Use a monitor when a thread wants access to some value in the master database in preparation for adding the diagnostic output (Lec 19-20)
 		if(numThreadsSpawned >= sizeOfThreadArray){
 			//If for whatever reason there exceeds 256 client connections, we're doing this memcpy nonsense instead of realloc to ensure that all non-used array entries are still "0"
 			pthread_t** testRealloc = malloc(sizeof(pthread_t*)*2*sizeOfThreadArray);
@@ -99,9 +100,8 @@ void* clientSession(void* args){
 	int clientSock = *(int*)args;
 	char recvBuffer[300];	//Buffer for reading data sent on socket
 	int inSession = 0;		//Bool to determine if client is in a session
-	char* currentAccount[255];	//Current account being served.
-	memset(currentAccount, 0, 255);	//Clearing currentAccount to 0 as a preventative measure for errors.
-	//Infinite loop for received data. Will break when quit is received.
+	Account* accountData;			//Pointer to the hash table entry where the info for the account being served is stored.
+	//Infinite loop for received data. Will break when quit is received or shutdown sig was sent
 	while(31337){
 		int recvStatus = recv(clientSock, (void*)recvBuffer, 300, 0);
 		if(strcmp(recvBuffer, "quit") == 0){
@@ -111,24 +111,116 @@ void* clientSession(void* args){
 		} else if(strcmp(recvBuffer, "end") == 0){
 			if(inSession == 0){
 				char errorMes[] = "Error: You are not currently in a service session.";
-				int sent = send(clientSock, errorMes, 50, 0);
-				printf("%d\n", sent);
+				send(clientSock, errorMes, 50, 0);
 			} else{
-				inSession = 0;
-				memset(currentAccount, 0, 255);
 				char endMes[] = "Ending current service session.";		//I may change this message to include account name being ended, but not a priority. Just looks nice is all
 				send(clientSock, endMes, 30, 0);
+				//Lock and unlock
+				pthread_mutex_lock(accountData->serviceLock);
+				accountData->inService = 0;
+				pthread_mutex_unlock(accountData->serviceLock);
+				inSession = 0;				
 			}
 		} else if(strcmp(recvBuffer, "query") == 0){
-
+			if(inSession == 0){
+				char errorMes[] = "Error: You are not currently in a service session.";
+				send(clientSock, errorMes, 50, 0);					
+			} else{
+				char* returnBalance = malloc(sizeof(char)*100);
+				memset(returnBalance, 0, 100);
+				snprintf(returnBalance, 100, "%f", accountData->balance);
+				send(clientSock, returnBalance, 100, 0);
+				free(returnBalance);
+			}
 		} else if(strncmp(recvBuffer, "create", 6) == 0){
-
+			//Checking if new account name is already in hash table:
+			char* paramName = strstr(recvBuffer, " ") + 1;
+			ENTRY testKey, *testEntry;
+			testKey.key = paramName;
+			testEntry = hsearch(testKey, FIND);
+			if(testEntry != NULL){
+				char errorMes[] = "Error: Given account is already in database. Please try another name.";	
+				send(clientSock, errorMes, 69, 0);		
+			} else{		
+				//Creating new account name on heap:
+				char* newName = malloc(sizeof(char)*(strlen(paramName)+1));
+				strcpy(newName, paramName);
+				//Creating new mutex associated with account:
+				pthread_mutex_t* newAccountMutex = malloc(sizeof(pthread_mutex_t));
+				pthread_mutex_init(newAccountMutex, NULL);
+				//Creating new struct:
+				Account* newAccountStruct = malloc(sizeof(Account));
+				//Shoving everything into said struct:
+				newAccountStruct->name = newName;
+				newAccountStruct->balance = 0;
+				newAccountStruct->inService = 0;
+				newAccountStruct->serviceLock = newAccountMutex;
+				//Loading new struct into hash table:
+				ENTRY newEntry;
+				newEntry.key = newName;
+				newEntry.data = (void*)newAccountStruct;
+				sem_wait(accountCreateLock);
+				hsearch(newEntry, ENTER);
+				sem_post(accountCreateLock);
+				//Respond to client:
+				char createMes[] = "Successfully created account.";
+				send(clientSock, createMes, 29, 0);
+			}
 		} else if(strncmp(recvBuffer, "serve", 5) == 0){
-
+			if(inSession != 0){
+				char errorMes[] = "Error: An account is already being serviced.";
+				send(clientSock, errorMes, 44, 0);
+			} else{
+				ENTRY searchAcc, *hashEntry;
+				char* requestedName = strstr(recvBuffer, " ") + 1;
+				searchAcc.key = requestedName;
+				hashEntry = hsearch(searchAcc, FIND);
+				if(hashEntry == NULL){
+					char errorMes[] = "Error: Account requested is not in database. Please create account first.";
+					send(clientSock, errorMes, 73, 0);
+				} else{
+					if( ((Account*)(hashEntry->data))->inService == 1 ){	//account already in session:
+						char errorMes[] = "Error: Account requested is currently in service. Please try again later.";
+						send(clientSock, errorMes, 72, 0);				
+					} else{
+						accountData = (Account*)(hashEntry->data);
+						//Lock serviceLock to prevent race condition.
+						pthread_mutex_lock(accountData->serviceLock);
+						accountData->inService = 1;
+						pthread_mutex_unlock(accountData->serviceLock);
+						inSession = 1;	//indicating locally that client is in a session.
+						char serveMes[] = "Now serving account.";		//Like above, may change to include account name to look nicer.
+						send(clientSock, serveMes, 20, 0);
+					}
+				}
+			}
 		} else if(strncmp(recvBuffer, "deposit", 7) == 0){
-
+			if(inSession == 0){
+				char errorMes[] = "Error: You are not currently in a service session.";
+				send(clientSock, errorMes, 50, 0);	
+			} else{
+				char* depositString = strstr(recvBuffer, " ") + 1;
+				double depositVal = atof(depositString);
+				accountData->balance += depositVal;
+				char depositMes[] = "Money successfully deposited.";	//Again, may include money val to look nicer.
+				send(clientSock, depositMes, 29, 0);
+			}
 		} else if(strncmp(recvBuffer, "withdraw", 8) == 0){
-
+			if(inSession == 0){
+				char errorMes[] = "Error: You are not currently in a service session.";
+				send(clientSock, errorMes, 50, 0);
+			} else{
+				char* withdrawString = strstr(recvBuffer, " ") + 1;
+				double withdrawVal = atof(withdrawString);
+				if(accountData->balance - withdrawVal < 0){
+					char youBrokeSon[] = "Insufficient funds to withdraw.";
+					send(clientSock, youBrokeSon, 31, 0);
+				} else{
+					accountData->balance -= withdrawVal;
+					char withdrawMes[] = "Money successfully withdrawn.";
+					send(clientSock, withdrawMes, 29, 0);
+				}
+			}				
 		} else if(recvStatus == 0){
 			printf("Connection terminated.\n");
 			break;
@@ -136,8 +228,7 @@ void* clientSession(void* args){
 			//Really should never get here if client is sanitizing commands, but in case server/client messed up:
 			char errorMsg[] = "Error: Received an invalid command (╯°□°）╯︵ ┻━┻";
 			printf("%s\n", errorMsg);
-			int sent = send(clientSock, errorMsg, 47, 0);
-			printf("%d\n", sent);
+			send(clientSock, errorMsg, 47, 0);
 		}
 		memset(recvBuffer, 0, 300);	//Purging recvBuffer in preparation of receiving next command.
 	}
@@ -153,7 +244,8 @@ int main(int argc, char** argv){
 	if(port < 8000 || port > 66000){
 		write(STDERR, "Fatal Error: Invalid port number.\n", 34);
 	}
-
+	
+	stopAndHammerTime = 0;
 	//Initializing Hash Table to store account information:
 	//NOTE: With the POSIX hash table, it doesn't support hash table resizing, so i'm setting the table size to be extremely large here and hoping that we don't exceed that.
 	//Check 'man hcreate' for usage.
@@ -161,8 +253,8 @@ int main(int argc, char** argv){
 	accountNames = (char**)malloc(sizeof(char*)*8192);	//initializing array that holds all account names.
 	memset(accountNames, 0, sizeof(char*)*8192);		//setting all array values to 0 so that we know where the account names stop. (Anti-segfault measure)
 	numAccounts = 0;
-	accountCreateLock = (pthread_mutex_t*)malloc(sizeof(pthread_mutex_t));	//creating mutex for account creation.
-	pthread_mutex_init(accountCreateLock, NULL);
+	accountCreateLock = (sem_t*)malloc(sizeof(sem_t));	//creating mutex for account creation.
+	sem_init(accountCreateLock, 0, 1);
 
 	//Creating thread to listen on incoming connections:
 	int* listenSocket = (int*)malloc(sizeof(int));	//Creating a space on the heap for listenSocket here. Will help in graceful termination.
