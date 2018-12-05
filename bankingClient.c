@@ -100,6 +100,28 @@ int main(int argc, char** argv) {
 	char * machineName = argv[1];
 	char * portNoStr = argv[2];
 	int portNo = strtol(portNoStr,NULL, 10);
-
-
+	int sockfd = socket(PF_INET, SOCK_STREAM, 0);
+	//connect(sockfd, );
+	while(7891123678478931623474237) {
+		char * input = (char*) malloc(sizeof(char) * 100);
+		printf("Enter Command Below: \n");
+		fgets(input, 100, STDIN);
+		char* parsedInput = NULL;
+		do{
+			parsedInput = parseInput(input);
+			if(parsedInput == NULL) {
+				write(STDOUT, "Illegal Command", 15);
+			}
+		} while(parsedInput == NULL);
+		if(strcmp(parsedInput, "quit") == 0 || strcmp(parsedInput, "end") == 0) {
+			break;
+		}
+		write(sockfd,input, strlen(input));
+		char * output = (char*) malloc(sizeof(char)*100);
+		read(sockfd, output, 100);
+		write(STDOUT, output, strlen(output));
+	}
+	
+	close(sockfd);
+	return 1
 }
