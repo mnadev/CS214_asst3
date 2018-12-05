@@ -161,6 +161,8 @@ void* clientSession(void* args){
 				newEntry.data = (void*)newAccountStruct;
 				sem_wait(accountCreateLock);
 				hsearch(newEntry, ENTER);
+				accountNames[numAccounts] = newName;
+				numAccounts++;
 				sem_post(accountCreateLock);
 				//Respond to client:
 				char createMes[] = "Successfully created account.";
