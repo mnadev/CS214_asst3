@@ -120,12 +120,12 @@ int main(int argc, char** argv) {
 	// create sockets and connect
 	int socketF = socket(AF_INET, SOCK_STREAM, 0);
 	
-	int tryBind = bind(socketF, (struct sockaddr *)&addr, 0);
-	if(tryBind != 0 ) {
+	//int tryBind = bind(socketF, (struct sockaddr *)&addr, sizeof(addr));
+	/*if(tryBind != 0 ) {
 		write(STDERR, "Failed at binding, exiting now.", 33);
 		return -1;
-	}
-	connect(socketF, ptrAI -> ai_addr, ptrAI -> ai_addrlen);
+	}*/
+	connect(socketF, (struct sockaddr *)&addr, sizeof(addr));
 	
 	// get input and do stuff
 	while(128374) {
