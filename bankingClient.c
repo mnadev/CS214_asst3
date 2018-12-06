@@ -105,8 +105,8 @@ int main(int argc, char** argv) {
 	dnsInfo.ai_family = SOCK_STREAM;
 	int address = getaddrinfo(machineName, NULL, &dnsInfo, &ptrAI);
 	
-	char* ipv[256];
-	getnameinfo(ptrAI -> ai_addr, ptrAI -> ai_addrlenm ipv, 256, NULL, 0, NI_NUMERICHOST);
+	char ipv[256];
+	getnameinfo(ptrAI -> ai_addr, ptrAI -> ai_addrlen, ipv, 256, NULL, 0, NI_NUMERICHOST);
 	
 	struct sockaddr_in addr;
 	
@@ -135,7 +135,7 @@ int main(int argc, char** argv) {
 		// parse the input, and keep asking for input until we get something
 		char* parsedInput = NULL;
 		do{
-			fgets(input, 100, STDIN);
+			fgets(input, 100, stdin);
 			parsedInput = parseInput(input);
 			if(parsedInput == NULL) {
 				write(STDOUT, "Illegal Command", 15);
@@ -160,6 +160,6 @@ int main(int argc, char** argv) {
 		free(output);
 	}
 	
-	close(sockfd);
-	return 1
+	close(socketF);
+	return 1;
 }
