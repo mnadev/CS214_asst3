@@ -5,6 +5,7 @@
 #include<string.h>
 #include<sys/socket.h>
 #include<netinet/in.h>
+#include <netdb.h>
 #define STDOUT 0
 #define STDIN 1
 #define STDERR 2
@@ -104,8 +105,8 @@ int main(int argc, char** argv) {
 	dnsInfo.ai_family = SOCK_STREAM;
 	int address = getaddrinfo(machineName, NULL, &dnsInfo, &ptrAI);
 	
-	char* ipv[256];
-	getnameinfo(ptrAI -> ai_addr, ptrAI -> ai_addrlenm ipv, 256, NULL, 0, NI_NUMERICHOST);
+	char ipv[256];
+	getnameinfo(ptrAI -> ai_addr, ptrAI -> ai_addrlen, ipv, 256, NULL, 0, NI_NUMERICHOST);
 	
 	struct sockaddr_in addr;
 	
@@ -119,22 +120,22 @@ int main(int argc, char** argv) {
 	// create sockets and connect
 	int socketF = socket(AF_INET, SOCK_STREAM, 0);
 	
-	int tryBind = bind(socketF, (struct sockaddr *)&addr, 0);
-	if(tryBind != 0 ) {
+	//int tryBind = bind(socketF, (struct sockaddr *)&addr, sizeof(addr));
+	/*if(tryBind != 0 ) {
 		write(STDERR, "Failed at binding, exiting now.", 33);
 		return -1;
-	}
-	connect(socketF, ptrAI -> ai_addr, ptrAI -> ai_addrlen);
+	}*/
+	connect(socketF, (struct sockaddr *)&addr, sizeof(addr));
 	
 	// get input and do stuff
-	while(7891123678478931623474237) {
+	while(128374) {
 		// get input from user, maybe chnage fgets but not sure.
 		char * input = (char*) malloc(sizeof(char) * 100);
 		
 		// parse the input, and keep asking for input until we get something
 		char* parsedInput = NULL;
 		do{
-			fgets(input, 100, STDIN);
+			fgets(input, 100, stdin);
 			parsedInput = parseInput(input);
 			if(parsedInput == NULL) {
 				write(STDOUT, "Illegal Command", 15);
@@ -159,6 +160,6 @@ int main(int argc, char** argv) {
 		free(output);
 	}
 	
-	close(sockfd);
-	return 1
+	close(socketF);
+	return 1;
 }
