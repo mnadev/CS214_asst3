@@ -2,12 +2,15 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+#include <time.h>
+#include <sys/time.h>
 #include <sys/types.h>
 #include <sys/socket.h> 
 #include <netinet/in.h> 
 #include <search.h>
 #include <pthread.h>
 #include <semaphore.h>
+#include <signal.h>
 #include "banking.h"
 #include <errno.h>
 
@@ -21,6 +24,24 @@ char** accountNames; //List of account names used when printing out diagnostic i
 int numAccounts;	//Used so that we know where to put the new account in accountNames upon creation.
 sem_t* accountCreateLock;		//Semaphore on account creation.
 int stopAndHammerTime;				//Boolean variable that will force all clients to close when shutdown command is received.
+pthread_attr_t* createDetachAttr;	//Attribute for pthread creation that won't wait for joins for reasons.
+
+//"Signal handler" for graceful termination and diagnostic output (Signal handling with multithreaded programs is weird):
+void* signal_handler(void* args){
+	int sigCaught;
+	SigArgs* theArgs = (SigArgs*)args;
+	sigwait(theArgs->sigSet, &sigCaught);
+	printf("%d\n", sigCaught);
+	switch(sigCaught){
+		case SIGINT:
+			stopAndHammerTime = 1;
+			close(*(theArgs->listenSockFD));
+			break;
+		case SIGALRM:
+			//Code for diagnostic output;
+			break;
+	}
+}
 
 //Thread function to accept any incoming connections
 void* listenConnections(void* ptrListenSock){
@@ -57,41 +78,25 @@ void* listenConnections(void* ptrListenSock){
 		exit(-1);
 	}
 	
-	//Array of all spawned threads
-	pthread_t** childrenThreadHandles = (pthread_t**)malloc(sizeof(pthread_t*)*256);
-	memset(childrenThreadHandles, 0, sizeof(pthread_t*)*256);	//Setting all bytes to 0 for joining later on.
-	int numThreadsSpawned = 0;
-	int sizeOfThreadArray = 256;
 	//Infinite loop to accept infinite number of incoming connections.
-	while(ptrListenSock != NULL){	//Loop will terminate when ptrListenSock is freed in main, will start closing all spawned sockets.
+	while(stopAndHammerTime == 0){	//Loop will terminate when stopAndHammerTime is set to 1, starting termination sequence.
 		int* newSockConnection = (int*)malloc(sizeof(int));
 		*newSockConnection = accept(*listenSock, (struct sockaddr*)(&ipBinding), &sizeBinding);
 		if(*newSockConnection < 0){
 			write(STDERR,"Error: Failed to create new client socket.\n", 43);
+			printf("%s\n", strerror(errno));
 		}
 		printf("Accepted new client connection.\n");
 		//Starting new thread for client session:
 		pthread_t* newClientThread = (pthread_t*)malloc(sizeof(pthread_t));
-		if(numThreadsSpawned >= sizeOfThreadArray){
-			//If for whatever reason there exceeds 256 client connections, we're doing this memcpy nonsense instead of realloc to ensure that all non-used array entries are still "0"
-			pthread_t** testRealloc = malloc(sizeof(pthread_t*)*2*sizeOfThreadArray);
-			memset(testRealloc, 0, sizeof(pthread_t*)*2*sizeOfThreadArray);
-			memcpy(testRealloc, childrenThreadHandles, sizeof(pthread_t*)*sizeOfThreadArray);
-			free(childrenThreadHandles);
-			childrenThreadHandles = testRealloc;
-		}
-		childrenThreadHandles[numThreadsSpawned] = newClientThread;
-		newClientThread++;
-		pthread_create(newClientThread, NULL, clientSession, (void*)newSockConnection);	//TODO: Change thread args for when i decide if anything else needs to be sent in there.
+		//Setting up a timeout on recv calls so that client won't be perma-blocking (needed for implementation of signal handling)
+		struct timeval timeout;
+		timeout.tv_sec = 10;
+		int setSockOpts = setsockopt(*newSockConnection, SOL_SOCKET, SO_RCVTIMEO, (void*)&timeout,(socklen_t)(sizeof(timeout)));
+
+		pthread_create(newClientThread, createDetachAttr, clientSession, (void*)newSockConnection);	//TODO: Change thread args for when i decide if anything else needs to be sent in there.
 	}
 	
-	//TODO:Closing all spawned sockets and blah:
-	//Self-Note: This is the plan:
-	//	Each thread will close it's own socket file descriptor
-	//	On server termination (which i still need to figure out how to do), all client threads will return the socket# they are using, and those will be closed externally.
-
-
-	pthread_exit(0);	//Placeholder. May need to use later.
 }
 
 //Thread function that's connected to a client.
@@ -101,9 +106,25 @@ void* clientSession(void* args){
 	char recvBuffer[300];	//Buffer for reading data sent on socket
 	int inSession = 0;		//Bool to determine if client is in a session
 	Account* accountData;			//Pointer to the hash table entry where the info for the account being served is stored.
-	//Infinite loop for received data. Will break when quit is received or shutdown sig was sent
-	while(31337){
-		int recvStatus = recv(clientSock, (void*)recvBuffer, 300, 0);
+	//Infinite loop for received data. Will break when quit is received or shutdown sig was sent.
+	while(stopAndHammerTime == 0){
+		char testBuffer[300];	//Checking that all bytes are received with a final message send.
+		memset(testBuffer, 0, 300);
+		int recvBytes = recv(clientSock, (void*)recvBuffer, 300, 0);	//Needed to ensure all bytes are received.
+		while( recvBytes > 0){
+			int recvTest = recv(clientSock, (void*)testBuffer, 300, 0);
+			if(testBuffer[0] == '~'){
+				break;
+			} else if (recvTest == 0){
+				recvBytes = 0;
+			} else if(recvTest == -1){
+				recvBytes = -1;
+			} else{
+				strcat(recvBuffer, testBuffer);
+				memset(testBuffer, 0, 300);
+			}
+		}
+		printf("%s\n", recvBuffer);
 		if(strcmp(recvBuffer, "quit") == 0){
 			char quitMes[] = "Quitting banking service. Have a nice day (≧ω≦)";
 			send(clientSock, quitMes, 47, 0);
@@ -223,17 +244,24 @@ void* clientSession(void* args){
 					send(clientSock, withdrawMes, 29, 0);
 				}
 			}				
-		} else if(recvStatus == 0){
+		} else if(recvBytes == 0){
 			printf("Connection terminated.\n");
 			break;
+		} else if(recvBytes == -1){
+			continue;
 		} else{
 			//Really should never get here if client is sanitizing commands, but in case server/client messed up:
 			char errorMsg[] = "Error: Received an invalid command (╯°□°）╯︵ ┻━┻";
 			printf("%s\n", errorMsg);
+			printf("%s\n", recvBuffer);
 			send(clientSock, errorMsg, 47, 0);
 		}
 		memset(recvBuffer, 0, 300);	//Purging recvBuffer in preparation of receiving next command.
 	}
+	//When the loop breaks, server will send message to client and close the socket.
+	char shutdownMes[] = "Server shutting down. Terminating Connection.";
+	send(clientSock, shutdownMes, 45, 0);
+	close(clientSock);
 }
 
 int main(int argc, char** argv){
@@ -258,11 +286,30 @@ int main(int argc, char** argv){
 	accountCreateLock = (sem_t*)malloc(sizeof(sem_t));	//creating mutex for account creation.
 	sem_init(accountCreateLock, 0, 1);
 
+	//Creating a thread for signal handling (all signals will be redirected to that thread. (An hour of googling later, this is the result I came up with)
+	sigset_t* signalsToCatch = malloc(sizeof(sigset_t));		//creating the set of signals to be caught (sigint and sigalarm)
+	sigemptyset(signalsToCatch);
+	sigaddset(signalsToCatch, SIGINT);
+	sigaddset(signalsToCatch, SIGALRM);
+
+	createDetachAttr = malloc(sizeof(pthread_attr_t));
+	pthread_attr_init(createDetachAttr);
+	pthread_attr_setdetachstate(createDetachAttr, PTHREAD_CREATE_DETACHED);
+	pthread_sigmask(SIG_BLOCK, signalsToCatch, 0);				//Causes all spawned threads to ignore signals sent.
+
 	//Creating thread to listen on incoming connections:
 	int* listenSocket = (int*)malloc(sizeof(int));	//Creating a space on the heap for listenSocket here. Will help in graceful termination.
 	pthread_t* listenThread = (pthread_t*)malloc(sizeof(pthread_t));
 	pthread_create(listenThread, NULL, listenConnections, (void*)listenSocket);
+
+	//Starting the sig handler.
+	pthread_t* sigHandler = malloc(sizeof(pthread_t));
+	SigArgs* args = malloc(sizeof(SigArgs));
+	args->listenSockFD = listenSocket;
+	args->sigSet = signalsToCatch;
+	pthread_create(sigHandler, createDetachAttr, signal_handler, (void*)args);
 	
-	//The code below will presumably be the timer code and signal handling stuff.
-	sleep(1000);	//placeholder so i can test threads.
+	//The code below will be timer set up code.
+
+	pthread_join(*listenThread, NULL);
 }

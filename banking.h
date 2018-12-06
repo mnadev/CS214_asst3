@@ -14,6 +14,11 @@ struct _Account{
 	pthread_mutex_t* serviceLock;	//A mutex to prevent multiple threads from trying to change the inService field at once. 
 } Account;
 
+typedef
+struct _sigArgs{
+	int* listenSockFD;
+	sigset_t* sigSet;
+} SigArgs;
 
 //Function Prototypes:
 
