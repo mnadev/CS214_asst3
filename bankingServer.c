@@ -31,11 +31,11 @@ void* signal_handler(void* args){
 	int sigCaught;
 	SigArgs* theArgs = (SigArgs*)args;
 	sigwait(theArgs->sigSet, &sigCaught);
-	printf("%d\n", sigCaught);
 	switch(sigCaught){
 		case SIGINT:
 			stopAndHammerTime = 1;
 			close(*(theArgs->listenSockFD));
+			pthread_kill(*(theArgs->listenThread), SIGUSR1);
 			break;
 		case SIGALRM:
 			//Code for diagnostic output;
@@ -85,6 +85,7 @@ void* listenConnections(void* ptrListenSock){
 		if(*newSockConnection < 0){
 			write(STDERR,"Error: Failed to create new client socket.\n", 43);
 			printf("%s\n", strerror(errno));
+			break;
 		}
 		printf("Accepted new client connection.\n");
 		//Starting new thread for client session:
@@ -96,7 +97,7 @@ void* listenConnections(void* ptrListenSock){
 
 		pthread_create(newClientThread, createDetachAttr, clientSession, (void*)newSockConnection);	//TODO: Change thread args for when i decide if anything else needs to be sent in there.
 	}
-	
+	pthread_exit(0);
 }
 
 //Thread function that's connected to a client.
@@ -307,6 +308,7 @@ int main(int argc, char** argv){
 	SigArgs* args = malloc(sizeof(SigArgs));
 	args->listenSockFD = listenSocket;
 	args->sigSet = signalsToCatch;
+	args->listenThread = listenThread;
 	pthread_create(sigHandler, createDetachAttr, signal_handler, (void*)args);
 	
 	//The code below will be timer set up code.

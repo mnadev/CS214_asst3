@@ -18,6 +18,7 @@ typedef
 struct _sigArgs{
 	int* listenSockFD;
 	sigset_t* sigSet;
+	pthread_t* listenThread;
 } SigArgs;
 
 //Function Prototypes:
