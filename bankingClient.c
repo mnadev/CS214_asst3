@@ -5,6 +5,7 @@
 #include<string.h>
 #include<sys/socket.h>
 #include<netinet/in.h>
+#include <netdb.h>
 #define STDOUT 0
 #define STDIN 1
 #define STDERR 2
@@ -127,7 +128,7 @@ int main(int argc, char** argv) {
 	connect(socketF, ptrAI -> ai_addr, ptrAI -> ai_addrlen);
 	
 	// get input and do stuff
-	while(7891123678478931623474237) {
+	while(128374) {
 		// get input from user, maybe chnage fgets but not sure.
 		char * input = (char*) malloc(sizeof(char) * 100);
 		
