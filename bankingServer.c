@@ -109,26 +109,11 @@ void* clientSession(void* args){
 	Account* accountData;			//Pointer to the hash table entry where the info for the account being served is stored.
 	//Infinite loop for received data. Will break when quit is received or shutdown sig was sent.
 	while(stopAndHammerTime == 0){
-		char testBuffer[300];	//Checking that all bytes are received with a final message send.
-		memset(testBuffer, 0, 300);
-		int recvBytes = recv(clientSock, (void*)recvBuffer, 300, 0);	//Needed to ensure all bytes are received.
-		while( recvBytes > 0){
-			int recvTest = recv(clientSock, (void*)testBuffer, 300, 0);
-			if(testBuffer[0] == '~'){
-				break;
-			} else if (recvTest == 0){
-				recvBytes = 0;
-			} else if(recvTest == -1){
-				recvBytes = -1;
-			} else{
-				strcat(recvBuffer, testBuffer);
-				memset(testBuffer, 0, 300);
-			}
-		}
+		int recvBytes = recv(clientSock, (void*)recvBuffer, 300, 0);	
 		printf("%s\n", recvBuffer);
 		if(strcmp(recvBuffer, "quit") == 0){
 			char quitMes[] = "Quitting banking service. Have a nice day (≧ω≦)";
-			send(clientSock, quitMes, 47, 0);
+			send(clientSock, quitMes, 50, 0);
 			break; 
 		} else if(strcmp(recvBuffer, "end") == 0){
 			if(inSession == 0){
@@ -255,7 +240,7 @@ void* clientSession(void* args){
 			char errorMsg[] = "Error: Received an invalid command (╯°□°）╯︵ ┻━┻";
 			printf("%s\n", errorMsg);
 			printf("%s\n", recvBuffer);
-			send(clientSock, errorMsg, 47, 0);
+			send(clientSock, errorMsg, 60, 0);
 		}
 		memset(recvBuffer, 0, 300);	//Purging recvBuffer in preparation of receiving next command.
 	}
