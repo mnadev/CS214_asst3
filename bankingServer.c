@@ -25,6 +25,40 @@ int numAccounts;	//Used so that we know where to put the new account in accountN
 sem_t* accountCreateLock;		//Semaphore on account creation.
 int stopAndHammerTime;				//Boolean variable that will force all clients to close when shutdown command is received.
 pthread_attr_t* createDetachAttr;	//Attribute for pthread creation that won't wait for joins for reasons.
+struct itimerval timer; // timer for diagnostic output
+
+void timer_print() {
+	for(int i = 0; i < numAccounts; i++) {
+		char *  curr_name = accountNames[i];
+		
+		// get account from hash table
+		Account curr_account = hsearch(curr_name, FIND);
+		printf("%s\t%d", curr_account -> name, curr_account -> balance);
+		if((curr_account -> inService) != 0) {
+			printf("\tIN SERVICE");
+		}
+	}
+}
+
+void reset_timer_params() {
+	// setting timer to 20 seconds
+	timer.it_interval.tv_sec = 0;
+   	timer.it_interval.tv_usec = 0;
+   	timer.it_value.tv_sec = 20;
+   	timer.it_value.tv_usec = 0;
+}
+
+void thread_timer_print() {
+	pthread_t  oneRing;
+	pthread_create(&oneRing, NULL, timer_print, NULL);
+	
+	//SIGALARM EVERY 20 second
+	// best to call before joining threads so this is only thread running?
+	reset_timer_params();
+	setitimer(ITIMER_REAL, &timer, 0);
+	
+	pthread_join(oneRing, NULL);
+}
 
 //"Signal handler" for graceful termination and diagnostic output (Signal handling with multithreaded programs is weird):
 void* signal_handler(void* args){
@@ -39,6 +73,8 @@ void* signal_handler(void* args){
 			break;
 		case SIGALRM:
 			//Code for diagnostic output;
+			thread_timer_print();
+			timer_print();
 			break;
 	}
 }
@@ -77,6 +113,9 @@ void* listenConnections(void* ptrListenSock){
 		write(STDERR, "Error: listenSock failed to listen.\n", 36);
 		exit(-1);
 	}
+	
+	// call timer right after we start listening
+	 setitimer(ITIMER_REAL, &timer ,0);
 	
 	//Infinite loop to accept infinite number of incoming connections.
 	while(stopAndHammerTime == 0){	//Loop will terminate when stopAndHammerTime is set to 1, starting termination sequence.
@@ -271,7 +310,15 @@ int main(int argc, char** argv){
 	numAccounts = 0;
 	accountCreateLock = (sem_t*)malloc(sizeof(sem_t));	//creating mutex for account creation.
 	sem_init(accountCreateLock, 0, 1);
-
+	
+	
+	// setting timer to 20 seconds
+	timer.it_interval.tv_sec = 0;
+   	timer.it_interval.tv_usec = 0;
+   	timer.it_value.tv_sec = 20;
+   	timer.it_value.tv_usec = 0;
+	
+	
 	//Creating a thread for signal handling (all signals will be redirected to that thread. (An hour of googling later, this is the result I came up with)
 	sigset_t* signalsToCatch = malloc(sizeof(sigset_t));		//creating the set of signals to be caught (sigint and sigalarm)
 	sigemptyset(signalsToCatch);
