@@ -5,6 +5,7 @@
 #include<string.h>
 #include<sys/socket.h>
 #include<netinet/in.h>
+#include <arpa/inet.h>
 #include <netdb.h>
 #define STDOUT 0
 #define STDIN 1
@@ -111,7 +112,8 @@ int main(int argc, char** argv) {
 	struct sockaddr_in addr;
 	
 	addr.sin_family = AF_INET; 
-	addr.sin_addr.s_addr = htonl(address); 
+	addr.sin_addr.s_addr = address; 
+	addr.sin_addr.s_addr = htonl(atoi(ipv)); 
 	addr.sin_port = htons(portNo);
 
 	
@@ -120,13 +122,16 @@ int main(int argc, char** argv) {
 	// create sockets and connect
 	int socketF = socket(AF_INET, SOCK_STREAM, 0);
 	
-	//int tryBind = bind(socketF, (struct sockaddr *)&addr, sizeof(addr));
-	/*if(tryBind != 0 ) {
+	int try_bind = bind(socketF, (struct sockaddr *)&addr, sizeof(addr));
+	if(try_bind != 0 ) {
 		write(STDERR, "Failed at binding, exiting now.", 33);
 		return -1;
-	}*/
-	connect(socketF, (struct sockaddr *)&addr, sizeof(addr));
-	
+	}
+	int try_conn = connect(socketF, (struct sockaddr *)&addr, sizeof(addr));
+	if(try_conn != 0 ) {
+		write(STDERR, "Failed at connecting, exiting now.", 36);
+		return -1;
+	}
 	// get input and do stuff
 	while(128374) {
 		// get input from user, maybe chnage fgets but not sure.
