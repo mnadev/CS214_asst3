@@ -23,59 +23,57 @@ int port;	//Port number program is listening on.
 char** accountNames; //List of account names used when printing out diagnostic information.
 int numAccounts;	//Used so that we know where to put the new account in accountNames upon creation.
 sem_t* accountCreateLock;		//Semaphore on account creation.
+int diagnosticActive;
 int stopAndHammerTime;				//Boolean variable that will force all clients to close when shutdown command is received.
 pthread_attr_t* createDetachAttr;	//Attribute for pthread creation that won't wait for joins for reasons.
 struct itimerval timer; // timer for diagnostic output
+pthread_mutex_t dummyMutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t condVar = PTHREAD_COND_INITIALIZER;
 
-void timer_print() {
-	for(int i = 0; i < numAccounts; i++) {
-		char *  curr_name = accountNames[i];
-		
-		// get account from hash table
-		Account curr_account = hsearch(curr_name, FIND);
-		printf("%s\t%d", curr_account -> name, curr_account -> balance);
-		if((curr_account -> inService) != 0) {
-			printf("\tIN SERVICE");
-		}
-	}
-}
-
-void reset_timer_params() {
-	// setting timer to 20 seconds
-	timer.it_interval.tv_sec = 0;
-   	timer.it_interval.tv_usec = 0;
-   	timer.it_value.tv_sec = 20;
-   	timer.it_value.tv_usec = 0;
-}
-
-void thread_timer_print() {
-	pthread_t  oneRing;
-	pthread_create(&oneRing, NULL, timer_print, NULL);
-	
-	//SIGALARM EVERY 20 second
-	// best to call before joining threads so this is only thread running?
-	reset_timer_params();
-	setitimer(ITIMER_REAL, &timer, 0);
-	
-	pthread_join(oneRing, NULL);
-}
 
 //"Signal handler" for graceful termination and diagnostic output (Signal handling with multithreaded programs is weird):
 void* signal_handler(void* args){
 	int sigCaught;
 	SigArgs* theArgs = (SigArgs*)args;
-	sigwait(theArgs->sigSet, &sigCaught);
-	switch(sigCaught){
-		case SIGINT:
-			stopAndHammerTime = 1;
-			close(*(theArgs->listenSockFD));
-			pthread_kill(*(theArgs->listenThread), SIGUSR1);
-			break;
-		case SIGALRM:
-			//Code for diagnostic output;
-			thread_timer_print();
-			timer_print();
-			break;
+	while(31337){
+		sigwait(theArgs->sigSet, &sigCaught);
+		switch(sigCaught){
+			case SIGINT:
+				stopAndHammerTime = 1;
+				close(*(theArgs->listenSockFD));
+				pthread_cancel(*(theArgs->listenThread));
+				pthread_exit(0);
+			case SIGALRM:
+				//Code for diagnostic output;
+				//thread_timer_print();
+				sem_wait(accountCreateLock);
+				diagnosticActive = 1;
+
+				if(numAccounts == 0){
+					printf("No accounts in database.\n");
+				}
+				int i;
+				for(i = 0; i < numAccounts; i++) {
+					char *  curr_name = accountNames[i];
+					ENTRY keySearch, *accEntry;
+					keySearch.key = curr_name;
+					// get account from hash table
+					accEntry = hsearch(keySearch, FIND);
+					Account* curr_account = (Account*)(accEntry->data);
+					printf("%s\t%d", curr_account -> name, curr_account -> balance);
+					if((curr_account -> inService) != 0) {
+						printf("\tIN SERVICE\n");
+					} else{
+						printf("\tNOT IN SERVICE\n");
+					}
+				}	
+
+				diagnosticActive = 0;
+				sem_post(accountCreateLock);
+				pthread_cond_broadcast(&condVar);
+				//break;
+		}
+		sigCaught = 0;
 	}
 }
 
@@ -114,16 +112,13 @@ void* listenConnections(void* ptrListenSock){
 		exit(-1);
 	}
 	
-	// call timer right after we start listening
-	 setitimer(ITIMER_REAL, &timer ,0);
-	
 	//Infinite loop to accept infinite number of incoming connections.
 	while(stopAndHammerTime == 0){	//Loop will terminate when stopAndHammerTime is set to 1, starting termination sequence.
 		int* newSockConnection = (int*)malloc(sizeof(int));
 		*newSockConnection = accept(*listenSock, (struct sockaddr*)(&ipBinding), &sizeBinding);
 		if(*newSockConnection < 0){
 			write(STDERR,"Error: Failed to create new client socket.\n", 43);
-			printf("%s\n", strerror(errno));
+			//printf("%s\n", strerror(errno));
 			break;
 		}
 		printf("Accepted new client connection.\n");
@@ -148,6 +143,9 @@ void* clientSession(void* args){
 	Account* accountData;			//Pointer to the hash table entry where the info for the account being served is stored.
 	//Infinite loop for received data. Will break when quit is received or shutdown sig was sent.
 	while(stopAndHammerTime == 0){
+		if(diagnosticActive == 1){
+			pthread_cond_wait(&condVar, &dummyMutex);
+		}
 		int recvBytes = recv(clientSock, (void*)recvBuffer, 300, 0);	
 		printf("%s\n", recvBuffer);
 		if(strcmp(recvBuffer, "quit") == 0){
@@ -311,13 +309,11 @@ int main(int argc, char** argv){
 	accountCreateLock = (sem_t*)malloc(sizeof(sem_t));	//creating mutex for account creation.
 	sem_init(accountCreateLock, 0, 1);
 	
-	
 	// setting timer to 20 seconds
-	timer.it_interval.tv_sec = 0;
+	timer.it_interval.tv_sec = 5;	//interval to 20 sec allows for auto-restart.
    	timer.it_interval.tv_usec = 0;
-   	timer.it_value.tv_sec = 20;
+   	timer.it_value.tv_sec = 5;
    	timer.it_value.tv_usec = 0;
-	
 	
 	//Creating a thread for signal handling (all signals will be redirected to that thread. (An hour of googling later, this is the result I came up with)
 	sigset_t* signalsToCatch = malloc(sizeof(sigset_t));		//creating the set of signals to be caught (sigint and sigalarm)
@@ -345,5 +341,10 @@ int main(int argc, char** argv){
 	
 	//The code below will be timer set up code.
 
+	//Starting timer:
+	setitimer(ITIMER_REAL, &timer, 0);
+	diagnosticActive = 0;
+
 	pthread_join(*listenThread, NULL);
+	printf("\nServer shutting down.\n");
 }
