@@ -115,38 +115,62 @@ int main(int argc, char** argv) {
 
 	// get ip address, using ipv4 can change to ipv6 if necessary
 	struct addrinfo dnsInfo, *ptrAI;
-	dnsInfo.ai_family = AF_INET;
-	dnsInfo.ai_family = SOCK_STREAM;
-	int try_addr = getaddrinfo(machineName, NULL, &dnsInfo, &ptrAI);
+	memset(&dnsInfo, 0, sizeof(dnsInfo));
+	dnsInfo.ai_family = AF_UNSPEC;
+	dnsInfo.ai_socktype = SOCK_STREAM;
+	int try_addr = getaddrinfo(machineName, portNoStr, &dnsInfo, &ptrAI);
+	if(try_addr < 0) {
+		if (try_addr == EAI_SYSTEM)
+       			 printf("looking up %s: %s\n", machineName, strerror(try_addr));
+    		else
+        		printf("looking up %s: %s\n", machineName, gai_strerror(try_addr));
+		write(STDERR, "Could not resolve hostname.\n", 28);
+		return -1;
+	}
 	//char* ipv = inet_ntoa(*((struct in_addr*) h->h_addr)); ;
 	
-	ptrAI -> ai_addr ->sin_port = htons(portNo)
+	//ptrAI -> ai_addr ->sin_port = htons(portNo)
 	
 	//struct* sockaddr addr = ptrAI -> ai_addr;	
 	
-	struct sockaddr_in addr = (struct sockaddr_in) ptrAI -> ai_addr;
+	/*struct sockaddr_in* addr = (struct sockaddr_in *) ptrAI -> ai_addr;
 	
-	addr.sin_family = AF_INET; 
+	addr->sin_family = AF_INET; 
 	//addr.sin_addr.s_addr = inet_addr(ipv); 
-	addr.sin_port = htons(portNo);
-	
-	// create sockets and connect
-	int socketF = socket(AF_INET, SOCK_STREAM, 0);
-	if(socketF < 0 ) {
-		write(STDERR, "Failed at creating socket, exiting now.\n", 41);
-		return -1;
+	addr->sin_port = htons(portNo);
+	*/
+	int socketF;
+	struct addrinfo* it;
+	for (it = ptrAI; it != NULL; it = it -> ai_next) {
+		// create sockets and connect
+		socketF = socket(it -> ai_family, it -> ai_socktype, it -> ai_protocol);
+		if(socketF < 0 ) {
+			//write(STDERR, "Failed at creating socket, exiting now.\n", 41);
+			//return -1;
+			close(socketF);
+			continue;
+		}
+
+		int try_conn = connect(socketF, it -> ai_addr, it -> ai_addrlen);;
+		if(try_conn < 0 ) {
+			//write(STDERR, "Failed at connecting, exiting now.\n", 37);
+			//return -1;
+			close(socketF);
+		} else {
+			break;
+		}
 	}
-	
-	int try_bind = bind(socketF, (struct sockaddr *)&addr, sizeof(addr));
+	/*
+	int try_bind = bind(socketF, (struct sockaddr *)addr, sizeof(*addr));
 	if(try_bind < 0 ) {
 		write(STDERR, "Failed at binding, exiting now.\n", 34);
 		return -1;
-	}
-	int try_conn = connect(socketF, ptrAI -> ai_addr, ptrAI -> ai_addrlen);;
+	}*/
+	/*int try_conn = connect(socketF, ptrAI -> ai_addr, ptrAI -> ai_addrlen);;
 	if(try_conn < 0 ) {
 		write(STDERR, "Failed at connecting, exiting now.\n", 37);
 		return -1;
-	}
+	}*/
 
 	// get input and do stuff
 	while(128374) {
