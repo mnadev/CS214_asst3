@@ -5,3 +5,5 @@ make debug:
 	gcc bankingServer.c -g -pthread -o debugServer
 	gcc bankingClient.c -g -o debugClient
 make clean:
+	rm bankingClient
+	rm bankingServer

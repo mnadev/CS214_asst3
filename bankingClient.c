@@ -90,7 +90,7 @@ char* parseInput(char * input) {
 
 int main(int argc, char** argv) {
 	if(argc != 3) {
-		write(STDERR, "Illegal number of arguments.",28);
+		write(STDERR, "Illegal number of arguments.\n",29);
 		return -1;
 	}
 	
@@ -99,47 +99,54 @@ int main(int argc, char** argv) {
 	char * machineName = argv[1];
 	char * portNoStr = argv[2];
 	int portNo = strtol(portNoStr,NULL, 10);
-	
+
+	struct hostent *h;	
+	h = gethostbyname(machineName);
+	if(h == NULL) {
+		write(STDERR, "Could not resolve hostname\n", 27);
+		return -1;
+	}
+
 	// get ip address, using ipv4 can change to ipv6 if necessary
-	struct addrinfo dnsInfo, *ptrAI;
+	/*struct addrinfo dnsInfo, *ptrAI;
 	dnsInfo.ai_family = AF_INET;
 	dnsInfo.ai_family = SOCK_STREAM;
 	int address = getaddrinfo(machineName, NULL, &dnsInfo, &ptrAI);
+	*/
+	char* ipv = inet_ntoa(*((struct in_addr*) h->h_addr)); ;
+	/*//getnameinfo(ptrAI -> ai_addr, ptrAI -> ai_addrlen, ipv, 256, NULL, 0, NI_NUMERICHOST);
 	
-	//char ipv[256];
-	//getnameinfo(ptrAI -> ai_addr, ptrAI -> ai_addrlen, ipv, 256, NULL, 0, NI_NUMERICHOST);
+	//ptrAI -> ai_addr ->sin_port = htons(portNo)
 	
-	ptrAI -> ai_addr ->sin_port = htons(portNo)
-	
-	struct* sockaddr addr = ptrAI -> ai_addr;	
-
-	/*struct sockaddr_in addr;
+	//struct* sockaddr addr = ptrAI -> ai_addr;	
+	*/
+	struct sockaddr_in addr;
 	
 	addr.sin_family = AF_INET; 
-	addr.sin_addr.s_addr = address; 
-	addr.sin_addr.s_addr = htonl(atoi(ipv)); 
-	addr.sin_port = htons(portNo);*/
+	addr.sin_addr.s_addr = inet_addr(ipv); 
+	addr.sin_port = htons(portNo);
 
 	
-	
+	printf("address: %s\n",h -> h_addr);	
 	
 	// create sockets and connect
 	int socketF = socket(AF_INET, SOCK_STREAM, 0);
-	if(socketF != 0 ) {
-		write(STDERR, "Failed at creating socket, exiting now.", 40);
+	if(socketF < 0 ) {
+		write(STDERR, "Failed at creating socket, exiting now.\n", 41);
 		return -1;
 	}
 	
-	int try_bind = bind(socketF, (struct sockaddr *)addr, sizeof(*addr));
-	if(try_bind != 0 ) {
-		write(STDERR, "Failed at binding, exiting now.", 33);
+	int try_bind = bind(socketF, (struct sockaddr *)&addr, sizeof(addr));
+	if(try_bind < 0 ) {
+		write(STDERR, "Failed at binding, exiting now.\n", 34);
 		return -1;
 	}
-	int try_conn = connect(socketF, (struct sockaddr *)addr, sizeof(*addr));
-	if(try_conn != 0 ) {
-		write(STDERR, "Failed at connecting, exiting now.", 36);
+	int try_conn = connect(socketF, (struct sockaddr *)&addr, sizeof(addr));
+	if(try_conn < 0 ) {
+		write(STDERR, "Failed at connecting, exiting now.\n", 37);
 		return -1;
 	}
+
 	// get input and do stuff
 	while(128374) {
 		// get input from user, maybe chnage fgets but not sure.
@@ -151,7 +158,7 @@ int main(int argc, char** argv) {
 			fgets(input, 100, stdin);
 			parsedInput = parseInput(input);
 			if(parsedInput == NULL) {
-				write(STDOUT, "Illegal Command", 15);
+				write(STDOUT, "Illegal Command\n", 16);
 			}
 		} while(parsedInput == NULL);
 		
@@ -159,12 +166,28 @@ int main(int argc, char** argv) {
 			write(socketF,"quit\0", 5);
 			break;
 		}
-		// write to server
-		write(socketF,input, strlen(input));
 		
+		int noAttempts = 0;
+		// write to server
+		while(send(socketF,input, strlen(input), 0) == -1) {
+			noAttempts++;
+			if(noAttempts > 10) {
+				write(STDERR, "Failed to send data.\n",23);
+				return -1;
+			}
+		}
+		
+
+		noAttempts = 0;
 		// get input from server
 		char * output = (char*) malloc(sizeof(char)*100);
-		read(socketF, output, 100);
+		while(recv(socketF, output, 100, 0) == -1) {
+			noAttempts++;
+			if(noAttempts > 10) {
+				write(STDERR, "Failed to recieve data.\n", 26);
+				return -1;
+			}
+		}
 		
 		// print output
 		write(STDOUT, output, strlen(output));
