@@ -98,36 +98,37 @@ int main(int argc, char** argv) {
 	//getting command line args
 	char * machineName = argv[1];
 	char * portNoStr = argv[2];
+	
+	if(isNumeric(portNoStr) == 0) {
+		write(STDERR, "Illegal arguments.\n", 19);
+		return -1;
+	}
+	
 	int portNo = strtol(portNoStr,NULL, 10);
 
-	struct hostent *h;	
+	/*struct hostent *h;	
 	h = gethostbyname(machineName);
 	if(h == NULL) {
 		write(STDERR, "Could not resolve hostname\n", 27);
 		return -1;
-	}
+	}*/
 
 	// get ip address, using ipv4 can change to ipv6 if necessary
-	/*struct addrinfo dnsInfo, *ptrAI;
+	struct addrinfo dnsInfo, *ptrAI;
 	dnsInfo.ai_family = AF_INET;
 	dnsInfo.ai_family = SOCK_STREAM;
-	int address = getaddrinfo(machineName, NULL, &dnsInfo, &ptrAI);
-	*/
-	char* ipv = inet_ntoa(*((struct in_addr*) h->h_addr)); ;
-	/*//getnameinfo(ptrAI -> ai_addr, ptrAI -> ai_addrlen, ipv, 256, NULL, 0, NI_NUMERICHOST);
+	int try_addr = getaddrinfo(machineName, NULL, &dnsInfo, &ptrAI);
+	//char* ipv = inet_ntoa(*((struct in_addr*) h->h_addr)); ;
 	
-	//ptrAI -> ai_addr ->sin_port = htons(portNo)
+	ptrAI -> ai_addr ->sin_port = htons(portNo)
 	
 	//struct* sockaddr addr = ptrAI -> ai_addr;	
-	*/
-	struct sockaddr_in addr;
+	
+	struct sockaddr_in addr = (struct sockaddr_in) ptrAI -> ai_addr;
 	
 	addr.sin_family = AF_INET; 
-	addr.sin_addr.s_addr = inet_addr(ipv); 
+	//addr.sin_addr.s_addr = inet_addr(ipv); 
 	addr.sin_port = htons(portNo);
-
-	
-	printf("address: %s\n",h -> h_addr);	
 	
 	// create sockets and connect
 	int socketF = socket(AF_INET, SOCK_STREAM, 0);
@@ -141,7 +142,7 @@ int main(int argc, char** argv) {
 		write(STDERR, "Failed at binding, exiting now.\n", 34);
 		return -1;
 	}
-	int try_conn = connect(socketF, (struct sockaddr *)&addr, sizeof(addr));
+	int try_conn = connect(socketF, ptrAI -> ai_addr, ptrAI -> ai_addrlen);;
 	if(try_conn < 0 ) {
 		write(STDERR, "Failed at connecting, exiting now.\n", 37);
 		return -1;
