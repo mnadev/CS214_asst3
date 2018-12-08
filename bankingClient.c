@@ -106,28 +106,36 @@ int main(int argc, char** argv) {
 	dnsInfo.ai_family = SOCK_STREAM;
 	int address = getaddrinfo(machineName, NULL, &dnsInfo, &ptrAI);
 	
-	char ipv[256];
-	getnameinfo(ptrAI -> ai_addr, ptrAI -> ai_addrlen, ipv, 256, NULL, 0, NI_NUMERICHOST);
+	//char ipv[256];
+	//getnameinfo(ptrAI -> ai_addr, ptrAI -> ai_addrlen, ipv, 256, NULL, 0, NI_NUMERICHOST);
 	
-	struct sockaddr_in addr;
+	ptrAI -> ai_addr ->sin_port = htons(portNo)
+	
+	struct* sockaddr addr = ptrAI -> ai_addr;	
+
+	/*struct sockaddr_in addr;
 	
 	addr.sin_family = AF_INET; 
 	addr.sin_addr.s_addr = address; 
 	addr.sin_addr.s_addr = htonl(atoi(ipv)); 
-	addr.sin_port = htons(portNo);
+	addr.sin_port = htons(portNo);*/
 
 	
 	
 	
 	// create sockets and connect
 	int socketF = socket(AF_INET, SOCK_STREAM, 0);
+	if(socketF != 0 ) {
+		write(STDERR, "Failed at creating socket, exiting now.", 40);
+		return -1;
+	}
 	
-	int try_bind = bind(socketF, (struct sockaddr *)&addr, sizeof(addr));
+	int try_bind = bind(socketF, (struct sockaddr *)addr, sizeof(*addr));
 	if(try_bind != 0 ) {
 		write(STDERR, "Failed at binding, exiting now.", 33);
 		return -1;
 	}
-	int try_conn = connect(socketF, (struct sockaddr *)&addr, sizeof(addr));
+	int try_conn = connect(socketF, (struct sockaddr *)addr, sizeof(*addr));
 	if(try_conn != 0 ) {
 		write(STDERR, "Failed at connecting, exiting now.", 36);
 		return -1;
@@ -148,7 +156,7 @@ int main(int argc, char** argv) {
 		} while(parsedInput == NULL);
 		
 		if(strcmp(parsedInput, "quit") == 0) {
-			write(socketF,"quit", 4);
+			write(socketF,"quit\0", 5);
 			break;
 		}
 		// write to server
