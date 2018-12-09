@@ -150,16 +150,16 @@ void* clientSession(void* args){
 		int recvBytes = recv(clientSock, (void*)recvBuffer, 300, 0);	
 		printf("%s\n", recvBuffer);
 		if(strcmp(recvBuffer, "quit") == 0){
-			char quitMes[] = "Quitting banking service. Have a nice day (≧ω≦)";
-			send(clientSock, quitMes, 50, 0);
+			char quitMes[] = "Quitting banking service. Have a nice day (≧ω≦)\n";
+			send(clientSock, quitMes, 51, 0);
 			break; 
 		} else if(strcmp(recvBuffer, "end") == 0){
 			if(inSession == 0){
-				char errorMes[] = "Error: You are not currently in a service session.";
-				send(clientSock, errorMes, 50, 0);
+				char errorMes[] = "Error: You are not currently in a service session.\n";
+				send(clientSock, errorMes, 51, 0);
 			} else{
-				char endMes[] = "Ending current service session.";		//I may change this message to include account name being ended, but not a priority. Just looks nice is all
-				send(clientSock, endMes, 30, 0);
+				char endMes[] = "Ending current service session.\n";		//I may change this message to include account name being ended, but not a priority. Just looks nice is all
+				send(clientSock, endMes, 31, 0);
 				//Lock and unlock
 				pthread_mutex_lock(accountData->serviceLock);
 				accountData->inService = 0;
@@ -168,8 +168,8 @@ void* clientSession(void* args){
 			}
 		} else if(strcmp(recvBuffer, "query") == 0){
 			if(inSession == 0){
-				char errorMes[] = "Error: You are not currently in a service session.";
-				send(clientSock, errorMes, 50, 0);					
+				char errorMes[] = "Error: You are not currently in a service session.\n";
+				send(clientSock, errorMes, 51, 0);					
 			} else{
 				char* returnBalance = malloc(sizeof(char)*100);
 				memset(returnBalance, 0, 100);
@@ -188,8 +188,8 @@ void* clientSession(void* args){
 			testKey.key = paramName;
 			testEntry = hsearch(testKey, FIND);
 			if(testEntry != NULL){
-				char errorMes[] = "Error: Given account is already in database. Please try another name.";	
-				send(clientSock, errorMes, 69, 0);		
+				char errorMes[] = "Error: Given account is already in database. Please try another name.\n";	
+				send(clientSock, errorMes, 70, 0);		
 			} else{		
 				//Creating new account name on heap:
 				char* newName = malloc(sizeof(char)*(strlen(paramName)+1));
@@ -214,13 +214,13 @@ void* clientSession(void* args){
 				numAccounts++;
 				sem_post(accountCreateLock);
 				//Respond to client:
-				char createMes[] = "Successfully created account.";
-				send(clientSock, createMes, 29, 0);
+				char createMes[] = "Successfully created account.\n";
+				send(clientSock, createMes, 30, 0);
 			}
 		} else if(strncmp(recvBuffer, "serve ", 6) == 0){
 			if(inSession != 0){
-				char errorMes[] = "Error: An account is already being serviced.";
-				send(clientSock, errorMes, 44, 0);
+				char errorMes[] = "Error: An account is already being serviced.\n";
+				send(clientSock, errorMes, 45, 0);
 			} else{
 				//Anti-segfault precaution:
 				if(strlen(recvBuffer) < 7){
@@ -231,12 +231,12 @@ void* clientSession(void* args){
 				searchAcc.key = requestedName;
 				hashEntry = hsearch(searchAcc, FIND);
 				if(hashEntry == NULL){
-					char errorMes[] = "Error: Account requested is not in database. Please create account first.";
-					send(clientSock, errorMes, 73, 0);
+					char errorMes[] = "Error: Account requested is not in database. Please create account first.\n";
+					send(clientSock, errorMes, 74, 0);
 				} else{
 					if( ((Account*)(hashEntry->data))->inService == 1 ){	//account already in session:
-						char errorMes[] = "Error: Account requested is currently in service. Please try again later.";
-						send(clientSock, errorMes, 72, 0);				
+						char errorMes[] = "Error: Account requested is currently in service. Please try again later.\n";
+						send(clientSock, errorMes, 73, 0);				
 					} else{
 						accountData = (Account*)(hashEntry->data);
 						//Lock serviceLock to prevent race condition.
@@ -244,15 +244,15 @@ void* clientSession(void* args){
 						accountData->inService = 1;
 						pthread_mutex_unlock(accountData->serviceLock);
 						inSession = 1;	//indicating locally that client is in a session.
-						char serveMes[] = "Now serving account.";		//Like above, may change to include account name to look nicer.
-						send(clientSock, serveMes, 20, 0);
+						char serveMes[] = "Now serving account.\n";		//Like above, may change to include account name to look nicer.
+						send(clientSock, serveMes, 21, 0);
 					}
 				}
 			}
 		} else if(strncmp(recvBuffer, "deposit ", 8) == 0){
 			if(inSession == 0){
-				char errorMes[] = "Error: You are not currently in a service session.";
-				send(clientSock, errorMes, 50, 0);	
+				char errorMes[] = "Error: You are not currently in a service session.\n";
+				send(clientSock, errorMes, 51, 0);	
 			} else{
 				//Anti-segfault precaution:
 				if(strlen(recvBuffer) < 9){
@@ -261,13 +261,13 @@ void* clientSession(void* args){
 				char* depositString = strstr(recvBuffer, " ") + 1;
 				double depositVal = atof(depositString);
 				accountData->balance += depositVal;
-				char depositMes[] = "Money successfully deposited.";	//Again, may include money val to look nicer.
-				send(clientSock, depositMes, 29, 0);
+				char depositMes[] = "Money successfully deposited.\n";	//Again, may include money val to look nicer.
+				send(clientSock, depositMes, 30, 0);
 			}
 		} else if(strncmp(recvBuffer, "withdraw ", 9) == 0){
 			if(inSession == 0){
-				char errorMes[] = "Error: You are not currently in a service session.";
-				send(clientSock, errorMes, 50, 0);
+				char errorMes[] = "Error: You are not currently in a service session.\n";
+				send(clientSock, errorMes, 51, 0);
 			} else{
 				//Anti-segfault precaution:
 				if(strlen(recvBuffer) < 10){
@@ -276,12 +276,12 @@ void* clientSession(void* args){
 				char* withdrawString = strstr(recvBuffer, " ") + 1;
 				double withdrawVal = atof(withdrawString);
 				if(accountData->balance - withdrawVal < 0){
-					char youBrokeSon[] = "Insufficient funds to withdraw.";
-					send(clientSock, youBrokeSon, 31, 0);
+					char youBrokeSon[] = "Insufficient funds to withdraw.\n";
+					send(clientSock, youBrokeSon, 32, 0);
 				} else{
 					accountData->balance -= withdrawVal;
-					char withdrawMes[] = "Money successfully withdrawn.";
-					send(clientSock, withdrawMes, 29, 0);
+					char withdrawMes[] = "Money successfully withdrawn.\n";
+					send(clientSock, withdrawMes, 30, 0);
 				}
 			}				
 		} else if(recvBytes == 0){
@@ -291,16 +291,16 @@ void* clientSession(void* args){
 			continue;
 		} else{
 			//Really should never get here if client is sanitizing commands, but in case server/client messed up:
-			char errorMsg[] = "Error: Received an invalid command (╯°□°）╯︵ ┻━┻";
+			char errorMsg[] = "Error: Received an invalid command (╯°□°）╯︵ ┻━┻\n";
 			printf("%s\n", errorMsg);
 			printf("%s\n", recvBuffer);
-			send(clientSock, errorMsg, 60, 0);
+			send(clientSock, errorMsg, 61, 0);
 		}
 		memset(recvBuffer, 0, 300);	//Purging recvBuffer in preparation of receiving next command.
 	}
 	//When the loop breaks, server will send message to client and close the socket.
-	char shutdownMes[] = "Server shutting down. Terminating Connection.";
-	send(clientSock, shutdownMes, 45, 0);
+	char shutdownMes[] = "Server shutting down. Terminating Connection.\n";
+	send(clientSock, shutdownMes, 46, 0);
 	close(clientSock);
 }
 
