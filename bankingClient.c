@@ -112,7 +112,7 @@ char* parseInput(char * input) {
 void* get_and_print(void *sf_p) {
 	int socketF = *( (int * ) sf_p);
 	while(shutdownMess == 0) {
-		int noAttempts = 0;
+		
 		// get input from server, idk how big message will be so i set it at 1000 chars
 		char * output = (char*) malloc(sizeof(char)*1000);
 		int rec = recv(socketF, output, 100, 0);
@@ -122,7 +122,6 @@ void* get_and_print(void *sf_p) {
 			shutdownMess = 1;
 			break;
 		}
-		
 		
 		// print output
 		if(rec > 0) {
@@ -151,14 +150,8 @@ void* get_and_send(void *sf_p) {
 			}
 		} while(parsedInput == NULL);
 		
-		if(strcmp(parsedInput, "quit") == 0) {
-			//write(socketF,"quit\0", 5);
-			//break;
-		}
-		
-		int noAttempts = 0;
 		// write to server
-		send(socketF,input, strlen(input), 0);
+		send(socketF,parsedInput, strlen(parsedInput), 0);
 		free(input);
 		sleep(2);
 	}
