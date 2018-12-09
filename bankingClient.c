@@ -98,7 +98,7 @@ char* parseInput(char * input) {
 
 			if(tok != NULL) {
 				char* retStr = (char*) malloc(sizeof(char)*(10 + strlen(tok)));
-				snprintf(retStr, 10 + strlen(tok), "serve %s\0", tok); 
+				snprintf(retStr, 10 + strlen(tok), "withdraw %s\0", tok); 
 				return retStr;
 			}
 		}
@@ -199,7 +199,7 @@ int main(int argc, char** argv) {
 	// get ip address, using ipv4 can change to ipv6 if necessary
 	struct addrinfo dnsInfo, *ptrAI;
 	memset(&dnsInfo, 0, sizeof(dnsInfo));
-	dnsInfo.ai_family = AF_UNSPEC;
+	dnsInfo.ai_family = AF_INET;
 	dnsInfo.ai_socktype = SOCK_STREAM;
 	
 	// try to resolve hostname to ip address
