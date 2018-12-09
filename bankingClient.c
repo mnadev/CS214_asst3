@@ -115,14 +115,7 @@ void* get_and_print(void *sf_p) {
 		int noAttempts = 0;
 		// get input from server, idk how big message will be so i set it at 1000 chars
 		char * output = (char*) malloc(sizeof(char)*1000);
-		while(recv(socketF, output, 100, 0) == -1) {
-			noAttempts++;
-			if(noAttempts > 10) {
-				//write(STDERR, "Failed to recieve data.\n", 26);
-				//return -1;
-			}
-		}
-		
+		int rec = recv(socketF, output, 100, 0);
 		// check for shutdown message from server. we have to change this
 		// depending on what is sent
 		if(strcmp(output,"Server shutting down. Terminating Connection.") == 0){
@@ -132,7 +125,9 @@ void* get_and_print(void *sf_p) {
 		
 		
 		// print output
-		write(STDOUT, output, strlen(output));
+		if(rec > 0) {
+			write(STDOUT, output, strlen(output));
+		}
 		free(output);
 	}
 		   
@@ -163,13 +158,7 @@ void* get_and_send(void *sf_p) {
 		
 		int noAttempts = 0;
 		// write to server
-		while(send(socketF,input, strlen(input), 0) == -1) {
-			noAttempts++;
-			if(noAttempts > 10) {
-				//write(STDERR, "Failed to send data.\n",23);
-				//return -1;
-			}
-		}
+		send(socketF,input, strlen(input), 0);
 		free(input);
 		sleep(2);
 	}
