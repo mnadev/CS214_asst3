@@ -11,8 +11,7 @@
 #define STDIN 1
 #define STDERR 2
 
-int shutdown = 0;
-pthread_mutex_t socket_m;
+int shutdownMess = 0;
 
 int isNumeric(char * string){
 	while(*string != '\0'){
@@ -91,8 +90,9 @@ char* parseInput(char * input) {
 
 }
 
-void get_and_print(int socketF) {
-	while(shutdown == 0) {
+void* get_and_print(void *sf_p) {
+	int socketF = *( (int * ) sf_p);
+	while(shutdownMess == 0) {
 		int noAttempts = 0;
 		// get input from server, idk how big message will be so i set it at 1000 chars
 		char * output = (char*) malloc(sizeof(char)*1000);
@@ -107,7 +107,7 @@ void get_and_print(int socketF) {
 		// check for shutdown message from server. we have to change this
 		// depending on what is sent
 		if(strcmp(output,"Server shutting down. Terminating Connection.") == 0){
-			shutdown = 1;
+			shutdownMess = 1;
 			break;
 		}
 		
@@ -117,12 +117,13 @@ void get_and_print(int socketF) {
 		free(output);
 	}
 		   
-	return 1;
+	pthread_exit(0);
 }
 
-void get_and_send(int socketF) {
+void* get_and_send(void *sf_p) {
+	int socketF = *( ( int * ) sf_p);
 	// get input and do stuff
-	while(shutdown == 0) {
+	while(shutdownMess == 0) {
 		// get input from user, maybe chnage fgets but not sure.
 		char * input = (char*) malloc(sizeof(char) * 100);
 		
@@ -143,7 +144,6 @@ void get_and_send(int socketF) {
 		
 		int noAttempts = 0;
 		// write to server
-		pthread_mutex_lock(&socket_m);
 		while(send(socketF,input, strlen(input), 0) == -1) {
 			noAttempts++;
 			if(noAttempts > 10) {
@@ -151,12 +151,11 @@ void get_and_send(int socketF) {
 				//return -1;
 			}
 		}
-		pthread_mutex_unlock(&socket_m);
 		free(input);
 		sleep(2);
 	}
 	
-	return 1;
+	pthread_exit(0);
 }
 
 int main(int argc, char** argv) {
@@ -209,20 +208,15 @@ int main(int argc, char** argv) {
 	while (try_conn < 0) {
 		try_conn = connect(socketF, ptrAI -> ai_addr, ptrAI -> ai_addrlen);
 	}
-
-	*socket_m = malloc(sizeof(pthread_mutex_t)); 
-	pthread_mutex_init(socket_m, NULL);
 	pthread_t* get_thread = (pthread_t*)malloc(sizeof(pthread_t)); 
 	pthread_t* print_thread = (pthread_t*)malloc(sizeof(pthread_t)); 
-	pthread_create(get_thread, NULL, get_and_send, socketF);
-	pthread_create(print_thread, NULL, get_and_print, socketF);
+	pthread_create(get_thread, NULL, get_and_send, (void*)&socketF);
+	pthread_create(print_thread, NULL, get_and_print, (void*)&socketF);
 	
 	
 	pthread_join(*get_thread, NULL);
 	pthread_join(*print_thread, NULL);
 	
-	pthread_mutex_destroy(socket_m);
-	free(socket_m);
 	
 	write(STDOUT, "Client Shutting down. R.I.P. your money.\n",41);
 	close(socketF);
