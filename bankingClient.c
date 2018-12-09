@@ -120,7 +120,9 @@ void* get_and_print(void *sf_p) {
 		// depending on what is sent
 		if(strcmp(output,"Server shutting down. Terminating Connection.") == 0){
 			shutdownMess = 1;
-			break;
+			//escape from fgets
+			write(STDIN, "SHUTDOWN\n", 9);
+			pthread_exit(0);
 		}
 		
 		// print output
@@ -144,9 +146,14 @@ void* get_and_send(void *sf_p) {
 		char* parsedInput = NULL;
 		do{
 			fgets(input, 100, stdin);
-			parsedInput = parseInput(input);
-			if(parsedInput == NULL) {
-				write(STDOUT, "Illegal Command\n", 16);
+			if(shutdownMess == 1) {
+				pthread_exit(0);
+			}
+			if(*input != '\0' && * input != '\n') {
+				parsedInput = parseInput(input);
+				if(parsedInput == NULL) {
+					write(STDOUT, "Illegal Command\n", 16);
+				}
 			}
 		} while(parsedInput == NULL);
 		
