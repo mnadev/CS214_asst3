@@ -147,6 +147,7 @@ void* clientSession(void* args){
 			pthread_cond_wait(&condVar, &dummyMutex);
 		}
 		int recvBytes = recv(clientSock, (void*)recvBuffer, 300, 0);	
+		printf("%s\n", recvBuffer);
 		if(strcmp(recvBuffer, "quit") == 0){
 			char quitMes[] = "Quitting banking service. Have a nice day (≧ω≦)";
 			send(clientSock, quitMes, 50, 0);
@@ -175,7 +176,11 @@ void* clientSession(void* args){
 				send(clientSock, returnBalance, 100, 0);
 				free(returnBalance);
 			}
-		} else if(strncmp(recvBuffer, "create", 6) == 0){
+		} else if(strncmp(recvBuffer, "create ", 7) == 0){
+			//Anti-segfault precaution:
+			if(strlen(recvBuffer) < 8){
+				continue;
+			}
 			//Checking if new account name is already in hash table:
 			char* paramName = strstr(recvBuffer, " ") + 1;
 			ENTRY testKey, *testEntry;
@@ -211,11 +216,15 @@ void* clientSession(void* args){
 				char createMes[] = "Successfully created account.";
 				send(clientSock, createMes, 29, 0);
 			}
-		} else if(strncmp(recvBuffer, "serve", 5) == 0){
+		} else if(strncmp(recvBuffer, "serve ", 6) == 0){
 			if(inSession != 0){
 				char errorMes[] = "Error: An account is already being serviced.";
 				send(clientSock, errorMes, 44, 0);
 			} else{
+				//Anti-segfault precaution:
+				if(strlen(recvBuffer) < 7){
+					continue;
+				}
 				ENTRY searchAcc, *hashEntry;
 				char* requestedName = strstr(recvBuffer, " ") + 1;
 				searchAcc.key = requestedName;
@@ -239,22 +248,30 @@ void* clientSession(void* args){
 					}
 				}
 			}
-		} else if(strncmp(recvBuffer, "deposit", 7) == 0){
+		} else if(strncmp(recvBuffer, "deposit ", 8) == 0){
 			if(inSession == 0){
 				char errorMes[] = "Error: You are not currently in a service session.";
 				send(clientSock, errorMes, 50, 0);	
 			} else{
+				//Anti-segfault precaution:
+				if(strlen(recvBuffer) < 9){
+					continue;
+				}
 				char* depositString = strstr(recvBuffer, " ") + 1;
 				double depositVal = atof(depositString);
 				accountData->balance += depositVal;
 				char depositMes[] = "Money successfully deposited.";	//Again, may include money val to look nicer.
 				send(clientSock, depositMes, 29, 0);
 			}
-		} else if(strncmp(recvBuffer, "withdraw", 8) == 0){
+		} else if(strncmp(recvBuffer, "withdraw ", 9) == 0){
 			if(inSession == 0){
 				char errorMes[] = "Error: You are not currently in a service session.";
 				send(clientSock, errorMes, 50, 0);
 			} else{
+				//Anti-segfault precaution:
+				if(strlen(recvBuffer) < 10){
+					continue;
+				}
 				char* withdrawString = strstr(recvBuffer, " ") + 1;
 				double withdrawVal = atof(withdrawString);
 				if(accountData->balance - withdrawVal < 0){
