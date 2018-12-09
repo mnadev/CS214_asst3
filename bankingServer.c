@@ -49,6 +49,7 @@ void* signal_handler(void* args){
 				sem_wait(accountCreateLock);
 				diagnosticActive = 1;
 
+				printf("Diagnostic Output:\n");
 				if(numAccounts == 0){
 					printf("No accounts in database.\n");
 				}
@@ -60,7 +61,7 @@ void* signal_handler(void* args){
 					// get account from hash table
 					accEntry = hsearch(keySearch, FIND);
 					Account* curr_account = (Account*)(accEntry->data);
-					printf("%s\t%d", curr_account -> name, curr_account -> balance);
+					printf("%s\t%f", curr_account -> name, curr_account -> balance);
 					if((curr_account -> inService) != 0) {
 						printf("\tIN SERVICE\n");
 					} else{
@@ -310,8 +311,9 @@ int main(int argc, char** argv){
 		return -1;
 	}
 	port = atoi(argv[1]);		//Getting port number from argument
-	if(port < 8000 || port > 66000){
+	if(port < 1000 || port > 66000){
 		write(STDERR, "Fatal Error: Invalid port number.\n", 34);
+		return -1;
 	}
 	
 	stopAndHammerTime = 0;
