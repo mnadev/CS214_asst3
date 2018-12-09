@@ -151,7 +151,7 @@ void* clientSession(void* args){
 		printf("%s\n", recvBuffer);
 		if(strcmp(recvBuffer, "quit") == 0){
 			char quitMes[] = "Quitting banking service. Have a nice day (≧ω≦)\n";
-			send(clientSock, quitMes, 51, 0);
+			send(clientSock, quitMes, 53, 0);
 			break; 
 		} else if(strcmp(recvBuffer, "end") == 0){
 			if(inSession == 0){
@@ -173,7 +173,7 @@ void* clientSession(void* args){
 			} else{
 				char* returnBalance = malloc(sizeof(char)*100);
 				memset(returnBalance, 0, 100);
-				snprintf(returnBalance, 100, "%f", accountData->balance);
+				snprintf(returnBalance, 100, "%f\n", accountData->balance);
 				send(clientSock, returnBalance, 100, 0);
 				free(returnBalance);
 			}
@@ -299,7 +299,7 @@ void* clientSession(void* args){
 		memset(recvBuffer, 0, 300);	//Purging recvBuffer in preparation of receiving next command.
 	}
 	//When the loop breaks, server will send message to client and close the socket.
-	char shutdownMes[] = "Server shutting down. Terminating Connection.\n";
+	char shutdownMes[] = "Server shutting down. Terminating Connection.";
 	send(clientSock, shutdownMes, 46, 0);
 	close(clientSock);
 }
