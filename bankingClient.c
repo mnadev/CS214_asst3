@@ -14,8 +14,11 @@
 int shutdownMess = 0;
 
 int isNumeric(char * string){
-	while(*string != '\0'){
-		if(!isdigit(*string)) {
+	while(*string != '\0' || *string != '\n'){
+		if(*string == '\0' || *string == '\n') {
+			break;
+		}
+		if(isdigit(*string) == 0) {
 			return 0;
 		}
 		string++;
@@ -24,28 +27,53 @@ int isNumeric(char * string){
 }
 
 char* parseInput(char * input) {
+	int len = strlen(input)-1;
+	if (input[len] == '\n'){
+		input[len] = '\0';
+	}
+  
+	if(strcmp(input,"query") == 0) {
+		char * retStr = (char*) malloc(sizeof(char)*6);
+		snprintf(retStr, 6, "query\0"); 
+		return retStr;
+	}
+		
+	if(strcmp(input, "end") == 0){
+		char * retStr = (char*) malloc(sizeof(char)*4);
+		snprintf(retStr, 4, "end\0");
+		return retStr;
+	}
+
+	if(strcmp(input, "quit") == 0) {
+		char * retStr = (char*) malloc(sizeof(char)*4);
+		snprintf(retStr, 5, "quit\0"); 
+		return retStr;
+	}
+
+
 	char * tok = strtok(input, " ");
+	//char * tok = NULL;
 	int i = 0;
 	while(tok != NULL) {
-		
+
 
 		if(strcmp(tok, "create") == 0) {
 			tok = strtok(NULL, " ");
-
-			char* retStr = (char*) malloc(sizeof(char)*(8 + strlen(tok)));				
-			strcpy(retStr, "create ");
-			strcat(retStr, tok);
-			return retStr;
+			if(tok != NULL) {
+				char* retStr = (char*) malloc(sizeof(char)*(8 + strlen(tok)));
+				snprintf(retStr, 8 + strlen(tok), "create %s\0", tok); 		
+				return retStr;
+			}
 		}
 
 
-		if(strtok(tok, "serve") == 0) {
+		if(strcmp(tok, "serve") == 0) {
 			tok = strtok(NULL, " ");
-
-			char* retStr = (char*) malloc(sizeof(char)*(7 + strlen(tok)));
-			strcpy(retStr, "serve ");
-			strcat(retStr, tok);
-			return retStr;
+			if(tok != NULL) {
+				char* retStr = (char*) malloc(sizeof(char)*(7 + strlen(tok)));
+				snprintf(retStr, 7 + strlen(tok), "serve %s\0", tok); 
+				return retStr;
+			}
 		}
 
 
@@ -55,11 +83,11 @@ char* parseInput(char * input) {
 				return NULL;
 			} 
 
-
-			char* retStr = (char*) malloc(sizeof(char)*(9 + strlen(tok)));
-			strcpy(retStr, "deposit ");
-			strcat(retStr, tok);
-			return retStr;
+			if(tok != NULL) {
+				char* retStr = (char*) malloc(sizeof(char)*(9 + strlen(tok)));
+				snprintf(retStr, 9 + strlen(tok), "deposit %s\0", tok); 
+				return retStr;
+			}
 		}
 
 		if(strcmp(tok, "withdraw") == 0) {
@@ -68,21 +96,12 @@ char* parseInput(char * input) {
 				return NULL;
 			}
 
-
-			char* retStr = (char*) malloc(sizeof(char)*(10 + strlen(tok)));
-			strcpy(retStr, "withdraw ");
-			strcat(retStr, tok);
-			return retStr;
+			if(tok != NULL) {
+				char* retStr = (char*) malloc(sizeof(char)*(10 + strlen(tok)));
+				snprintf(retStr, 10 + strlen(tok), "serve %s\0", tok); 
+				return retStr;
+			}
 		}
-
-		if(strcmp(tok,"query") == 0 || strcmp(tok, "end") == 0 || strcmp(tok, "quit") == 0) {
-			char* retStr = (char*) malloc(sizeof(char) * 6);
-			strcpy(retStr,tok);
-			strcat(retStr, "\0");
-			return retStr;
-		}
-		
-
 		return NULL;
 	}
 	
