@@ -147,7 +147,6 @@ void* clientSession(void* args){
 			pthread_cond_wait(&condVar, &dummyMutex);
 		}
 		int recvBytes = recv(clientSock, (void*)recvBuffer, 300, 0);	
-		printf("%s\n", recvBuffer);
 		if(strcmp(recvBuffer, "quit") == 0){
 			char quitMes[] = "Quitting banking service. Have a nice day (≧ω≦)";
 			send(clientSock, quitMes, 50, 0);
@@ -309,10 +308,10 @@ int main(int argc, char** argv){
 	accountCreateLock = (sem_t*)malloc(sizeof(sem_t));	//creating mutex for account creation.
 	sem_init(accountCreateLock, 0, 1);
 	
-	// setting timer to 20 seconds
-	timer.it_interval.tv_sec = 5;	//interval to 20 sec allows for auto-restart.
+	// setting timer to 15 seconds
+	timer.it_interval.tv_sec = 15;	//interval to 15 sec allows for auto-restart.
    	timer.it_interval.tv_usec = 0;
-   	timer.it_value.tv_sec = 5;
+   	timer.it_value.tv_sec = 15;
    	timer.it_value.tv_usec = 0;
 	
 	//Creating a thread for signal handling (all signals will be redirected to that thread. (An hour of googling later, this is the result I came up with)
