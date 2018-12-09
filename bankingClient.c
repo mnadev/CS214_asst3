@@ -18,7 +18,7 @@ int isNumeric(char * string){
 		if(*string == '\0' || *string == '\n') {
 			break;
 		}
-		if(isdigit(*string) == 0) {
+		if(isdigit(*string) == 0 && *string != '.') {
 			return 0;
 		}
 		string++;
@@ -28,10 +28,13 @@ int isNumeric(char * string){
 
 char* parseInput(char * input) {
 	int len = strlen(input)-1;
+	if(len == 0 || len == 1) {
+		return NULL;
+	}
 	if (input[len] == '\n'){
 		input[len] = '\0';
 	}
-  
+ 	 
 	if(strcmp(input,"query") == 0) {
 		char * retStr = (char*) malloc(sizeof(char)*6);
 		snprintf(retStr, 6, "query\0"); 
@@ -50,6 +53,10 @@ char* parseInput(char * input) {
 		return retStr;
 	}
 
+	
+	if(strstr(input, " ") == NULL) {
+		return NULL;
+	}	
 
 	char * tok = strtok(input, " ");
 	//char * tok = NULL;
@@ -115,10 +122,11 @@ void* get_and_print(void *sf_p) {
 		
 		// get input from server, idk how big message will be so i set it at 1000 chars
 		char * output = (char*) malloc(sizeof(char)*1000);
+		memset(output, 0, 1000); 
 		int rec = recv(socketF, output, 100, 0);
 		// check for shutdown message from server. we have to change this
 		// depending on what is sent
-		if(strcmp(output,"Server shutting down. Terminating Connection.") == 0){
+		if(strstr(output,"Server shutting down. Terminating Connection.") != NULL){
 			shutdownMess = 1;
 			//escape from fgets
 			write(STDIN, "SHUTDOWN\n", 9);
@@ -140,12 +148,11 @@ void* get_and_send(void *sf_p) {
 	// get input and do stuff
 	while(shutdownMess == 0) {
 		// get input from user, maybe chnage fgets but not sure.
-		char * input = (char*) malloc(sizeof(char) * 100);
-		
+		char * input = (char*) malloc(sizeof(char) * 300);
 		// parse the input, and keep asking for input until we get something
 		char* parsedInput = NULL;
 		do{
-			fgets(input, 100, stdin);
+			fgets(input, 300, stdin);
 			if(shutdownMess == 1) {
 				pthread_exit(0);
 			}
@@ -156,7 +163,11 @@ void* get_and_send(void *sf_p) {
 				}
 			}
 		} while(parsedInput == NULL);
-		
+
+		if(strcmp(parsedInput, "quit") == 0){
+			shutdownMess = 1;
+		}
+
 		// write to server
 		send(socketF,parsedInput, strlen(parsedInput), 0);
 		free(input);
