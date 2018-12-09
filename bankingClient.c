@@ -11,6 +11,9 @@
 #define STDIN 1
 #define STDERR 2
 
+int shutdown = 0;
+pthread_mutex_t socket_m;
+
 int isNumeric(char * string){
 	while(*string != '\0'){
 		if(!isdigit(*string)) {
@@ -88,6 +91,74 @@ char* parseInput(char * input) {
 
 }
 
+void get_and_print(int socketF) {
+	while(shutdown == 0) {
+		int noAttempts = 0;
+		// get input from server, idk how big message will be so i set it at 1000 chars
+		char * output = (char*) malloc(sizeof(char)*1000);
+		while(recv(socketF, output, 100, 0) == -1) {
+			noAttempts++;
+			if(noAttempts > 10) {
+				//write(STDERR, "Failed to recieve data.\n", 26);
+				//return -1;
+			}
+		}
+		
+		// check for shutdown message from server. we have to change this
+		// depending on what is sent
+		if(strcmp(output,"Server shutting down. Terminating Connection.") == 0){
+			shutdown = 1;
+			break;
+		}
+		
+		
+		// print output
+		write(STDOUT, output, strlen(output));
+		free(output);
+	}
+		   
+	return 1;
+}
+
+void get_and_send(int socketF) {
+	// get input and do stuff
+	while(shutdown == 0) {
+		// get input from user, maybe chnage fgets but not sure.
+		char * input = (char*) malloc(sizeof(char) * 100);
+		
+		// parse the input, and keep asking for input until we get something
+		char* parsedInput = NULL;
+		do{
+			fgets(input, 100, stdin);
+			parsedInput = parseInput(input);
+			if(parsedInput == NULL) {
+				write(STDOUT, "Illegal Command\n", 16);
+			}
+		} while(parsedInput == NULL);
+		
+		if(strcmp(parsedInput, "quit") == 0) {
+			//write(socketF,"quit\0", 5);
+			//break;
+		}
+		
+		int noAttempts = 0;
+		// write to server
+		pthread_mutex_lock(&socket_m);
+		while(send(socketF,input, strlen(input), 0) == -1) {
+			noAttempts++;
+			if(noAttempts > 10) {
+				//write(STDERR, "Failed to send data.\n",23);
+				//return -1;
+			}
+		}
+		pthread_mutex_unlock(&socket_m);
+		free(input);
+		sleep(2);
+	}
+	
+	return 1;
+}
+
 int main(int argc, char** argv) {
 	if(argc != 3) {
 		write(STDERR, "Illegal number of arguments.\n",29);
@@ -106,121 +177,54 @@ int main(int argc, char** argv) {
 	
 	int portNo = strtol(portNoStr,NULL, 10);
 
-	/*struct hostent *h;	
-	h = gethostbyname(machineName);
-	if(h == NULL) {
-		write(STDERR, "Could not resolve hostname\n", 27);
-		return -1;
-	}*/
 
 	// get ip address, using ipv4 can change to ipv6 if necessary
 	struct addrinfo dnsInfo, *ptrAI;
 	memset(&dnsInfo, 0, sizeof(dnsInfo));
 	dnsInfo.ai_family = AF_UNSPEC;
 	dnsInfo.ai_socktype = SOCK_STREAM;
+	
+	// try to resolve hostname to ip address
 	int try_addr = getaddrinfo(machineName, portNoStr, &dnsInfo, &ptrAI);
 	if(try_addr < 0) {
-		if (try_addr == EAI_SYSTEM)
-       			 printf("looking up %s: %s\n", machineName, strerror(try_addr));
-    		else
-        		printf("looking up %s: %s\n", machineName, gai_strerror(try_addr));
 		write(STDERR, "Could not resolve hostname.\n", 28);
 		return -1;
 	}
-	//char* ipv = inet_ntoa(*((struct in_addr*) h->h_addr)); ;
 	
-	//ptrAI -> ai_addr ->sin_port = htons(portNo)
-	
-	//struct* sockaddr addr = ptrAI -> ai_addr;	
-	
-	/*struct sockaddr_in* addr = (struct sockaddr_in *) ptrAI -> ai_addr;
-	
-	addr->sin_family = AF_INET; 
-	//addr.sin_addr.s_addr = inet_addr(ipv); 
-	addr->sin_port = htons(portNo);
-	*/
-	int socketF;
-	struct addrinfo* it;
-	for (it = ptrAI; it != NULL; it = it -> ai_next) {
-		// create sockets and connect
-		socketF = socket(it -> ai_family, it -> ai_socktype, it -> ai_protocol);
-		if(socketF < 0 ) {
-			//write(STDERR, "Failed at creating socket, exiting now.\n", 41);
-			//return -1;
-			close(socketF);
-			continue;
-		}
+	// create socket descriptor
+	int socketF = socket(ptrAI -> ai_family, ptrAI -> ai_socktype, ptrAI -> ai_protocol);
+	while(socketF < 0) {
+		socketF = socket(ptrAI -> ai_family, ptrAI -> ai_socktype, ptrAI -> ai_protocol);
+	}	
 
-		int try_conn = connect(socketF, it -> ai_addr, it -> ai_addrlen);;
-		if(try_conn < 0 ) {
-			//write(STDERR, "Failed at connecting, exiting now.\n", 37);
-			//return -1;
-			close(socketF);
-		} else {
-			break;
-		}
-	}
 	/*
 	int try_bind = bind(socketF, (struct sockaddr *)addr, sizeof(*addr));
 	if(try_bind < 0 ) {
 		write(STDERR, "Failed at binding, exiting now.\n", 34);
 		return -1;
 	}*/
-	/*int try_conn = connect(socketF, ptrAI -> ai_addr, ptrAI -> ai_addrlen);;
-	if(try_conn < 0 ) {
-		write(STDERR, "Failed at connecting, exiting now.\n", 37);
-		return -1;
-	}*/
-
-	// get input and do stuff
-	while(128374) {
-		// get input from user, maybe chnage fgets but not sure.
-		char * input = (char*) malloc(sizeof(char) * 100);
-		
-		// parse the input, and keep asking for input until we get something
-		char* parsedInput = NULL;
-		do{
-			fgets(input, 100, stdin);
-			parsedInput = parseInput(input);
-			if(parsedInput == NULL) {
-				write(STDOUT, "Illegal Command\n", 16);
-			}
-		} while(parsedInput == NULL);
-		
-		if(strcmp(parsedInput, "quit") == 0) {
-			write(socketF,"quit\0", 5);
-			break;
-		}
-		
-		int noAttempts = 0;
-		// write to server
-		while(send(socketF,input, strlen(input), 0) == -1) {
-			noAttempts++;
-			if(noAttempts > 10) {
-				write(STDERR, "Failed to send data.\n",23);
-				return -1;
-			}
-		}
-		
-
-		noAttempts = 0;
-		// get input from server
-		char * output = (char*) malloc(sizeof(char)*100);
-		while(recv(socketF, output, 100, 0) == -1) {
-			noAttempts++;
-			if(noAttempts > 10) {
-				write(STDERR, "Failed to recieve data.\n", 26);
-				return -1;
-			}
-		}
-		
-		// print output
-		write(STDOUT, output, strlen(output));
-		
-		free(input);
-		free(output);
-	}
 	
+	// try to connect to socket, prob wont work
+	int try_conn = connect(socketF, ptrAI -> ai_addr, ptrAI -> ai_addrlen);
+	while (try_conn < 0) {
+		try_conn = connect(socketF, ptrAI -> ai_addr, ptrAI -> ai_addrlen);
+	}
+
+	*socket_m = malloc(sizeof(pthread_mutex_t)); 
+	pthread_mutex_init(socket_m, NULL);
+	pthread_t* get_thread = (pthread_t*)malloc(sizeof(pthread_t)); 
+	pthread_t* print_thread = (pthread_t*)malloc(sizeof(pthread_t)); 
+	pthread_create(get_thread, NULL, get_and_send, socketF);
+	pthread_create(print_thread, NULL, get_and_print, socketF);
+	
+	
+	pthread_join(*get_thread, NULL);
+	pthread_join(*print_thread, NULL);
+	
+	pthread_mutex_destroy(socket_m);
+	free(socket_m);
+	
+	write(STDOUT, "Client Shutting down. R.I.P. your money.\n",41);
 	close(socketF);
-	return 1;
+	return 0;
 }
