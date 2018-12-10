@@ -294,7 +294,7 @@ void* clientSession(void* args){
 			char errorMsg[] = "Error: Received an invalid command (╯°□°）╯︵ ┻━┻\n";
 			printf("%s\n", errorMsg);
 			printf("%s\n", recvBuffer);
-			send(clientSock, errorMsg, 61, 0);
+			send(clientSock, errorMsg, 68, 0);
 		}
 		memset(recvBuffer, 0, 300);	//Purging recvBuffer in preparation of receiving next command.
 	}
