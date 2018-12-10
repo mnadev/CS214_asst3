@@ -153,7 +153,8 @@ void* get_and_print(void *sf_p) {
 		if(strstr(output,"Server shutting down. Terminating Connection.") != NULL){
 			shutdownMess = 1;
 			//escape from fgets
-			pthread_kill(*get_thread, SIGKILL);
+			pthread_cancel(*get_thread);
+			//pthread_kill(*get_thread, SIGKILL);
 			write(STDIN, "SHUTDOWN\n", 9);
 			pthread_exit(0);
 		}
@@ -195,7 +196,8 @@ void* get_and_send(void *sf_p) {
 		// write to server
 		send(socketF,parsedInput, strlen(parsedInput), 0);
 		free(input);
-		sleep(2);
+	//	usleep(2000);
+		sleep(2000);
 	}
 	
 	pthread_exit(0);
