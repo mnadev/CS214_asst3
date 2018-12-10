@@ -5,6 +5,7 @@
 #include<string.h>
 #include<sys/socket.h>
 #include<netinet/in.h>
+#include<signal.h>
 #include <arpa/inet.h>
 #include <netdb.h>
 #define STDOUT 0
@@ -12,6 +13,9 @@
 #define STDERR 2
 
 int shutdownMess = 0;
+
+pthread_t* get_thread; 
+pthread_t* print_thread; 
 
 int isNumeric(char * string){
 	while(*string != '\0' || *string != '\n'){
@@ -26,7 +30,7 @@ int isNumeric(char * string){
 	return 1;
 }
 
-char* parseInput(char * input) {
+char* parseInput(char * input, int length) {
 	int len = strlen(input)-1;
 	if(len == 0 || len == 1) {
 		return NULL;
@@ -34,7 +38,10 @@ char* parseInput(char * input) {
 	if (input[len] == '\n'){
 		input[len] = '\0';
 	}
- 	 
+ 	char * copy = (char * ) malloc(sizeof(char) * length);
+	memset(copy, '\0', length);
+	strcpy(copy, input);
+	 
 	if(strcmp(input,"query") == 0) {
 		char * retStr = (char*) malloc(sizeof(char)*6);
 		snprintf(retStr, 6, "query\0"); 
@@ -74,23 +81,23 @@ char* parseInput(char * input) {
 	int i = 0;
 	while(tok != NULL) {
 
-		char* retStr = (char*) malloc(strlen(input)+ 2);
+		char* retStr = (char*) malloc(length+ 2);
 		memset(retStr, 0, strlen(input)+ 2);
 
 		if(strcmp(tok, "create") == 0) {
-			snprintf(retStr, strlen(input), "%s\0", input); 		
+			snprintf(retStr, strlen(copy) + 1, "%s\0", copy); 		
 			return retStr;	
 		}
 
 
 		if(strcmp(tok, "serve") == 0) {
-			snprintf(retStr, strlen(input), "%s\0", input); 	 
+			snprintf(retStr, strlen(copy) + 1, "%s\0", copy); 	 
 			return retStr;
 		}
 
 
 		if(strcmp(tok, "deposit") == 0) {
-			if(strlen(input) - strlen(tok) <= 2) {
+			if(length - strlen(tok) <= 2) {
 				return NULL;
 			}
 			tok = strtok(NULL, " ");
@@ -109,8 +116,8 @@ char* parseInput(char * input) {
 		}
 
 		if(strcmp(tok, "withdraw") == 0) {
-			if(strlen(input) - strlen(tok) <= 2) {
-			return NULL;
+			if(length - strlen(tok) <= 2) {
+				return NULL;
 			}
 			tok = strtok(NULL, " ");
 			if(tok != NULL) {
@@ -146,6 +153,7 @@ void* get_and_print(void *sf_p) {
 		if(strstr(output,"Server shutting down. Terminating Connection.") != NULL){
 			shutdownMess = 1;
 			//escape from fgets
+			pthread_kill(*get_thread, SIGKILL);
 			write(STDIN, "SHUTDOWN\n", 9);
 			pthread_exit(0);
 		}
@@ -174,7 +182,7 @@ void* get_and_send(void *sf_p) {
 				pthread_exit(0);
 			}
 			if(*input != '\0' && * input != '\n') {
-				parsedInput = parseInput(input);
+				parsedInput = parseInput(input, strlen(input));
 				if(parsedInput == NULL) {
 					write(STDOUT, "Illegal Command\n", 16);
 				}
@@ -184,7 +192,6 @@ void* get_and_send(void *sf_p) {
 		if(strcmp(parsedInput, "quit") == 0){
 			shutdownMess = 1;
 		}
-
 		// write to server
 		send(socketF,parsedInput, strlen(parsedInput), 0);
 		free(input);
@@ -244,8 +251,8 @@ int main(int argc, char** argv) {
 	while (try_conn < 0) {
 		try_conn = connect(socketF, ptrAI -> ai_addr, ptrAI -> ai_addrlen);
 	}
-	pthread_t* get_thread = (pthread_t*)malloc(sizeof(pthread_t)); 
-	pthread_t* print_thread = (pthread_t*)malloc(sizeof(pthread_t)); 
+	get_thread = (pthread_t*)malloc(sizeof(pthread_t)); 
+	print_thread = (pthread_t*)malloc(sizeof(pthread_t)); 
 	pthread_create(get_thread, NULL, get_and_send, (void*)&socketF);
 	pthread_create(print_thread, NULL, get_and_print, (void*)&socketF);
 	
