@@ -74,52 +74,58 @@ char* parseInput(char * input) {
 	int i = 0;
 	while(tok != NULL) {
 
+		char* retStr = (char*) malloc(strlen(input)+ 2);
+		memset(retStr, 0, strlen(input)+ 2);
 
 		if(strcmp(tok, "create") == 0) {
-			tok = strtok(NULL, " ");
-			if(tok != NULL) {
-				char* retStr = (char*) malloc(sizeof(char)*(8 + strlen(tok)));
-				snprintf(retStr, 8 + strlen(tok), "create %s\0", tok); 		
-				return retStr;
-			}
+			snprintf(retStr, strlen(input), "%s\0", input); 		
+			return retStr;	
 		}
 
 
 		if(strcmp(tok, "serve") == 0) {
-			tok = strtok(NULL, " ");
-			if(tok != NULL) {
-				char* retStr = (char*) malloc(sizeof(char)*(7 + strlen(tok)));
-				snprintf(retStr, 7 + strlen(tok), "serve %s\0", tok); 
-				return retStr;
-			}
+			snprintf(retStr, strlen(input), "%s\0", input); 	 
+			return retStr;
 		}
 
 
 		if(strcmp(tok, "deposit") == 0) {
-			tok = strtok(NULL, " ");
-			if(isNumeric(tok) == 0) {
+			if(strlen(input) - strlen(tok) <= 2) {
 				return NULL;
-			} 
-
-			if(tok != NULL) {
-				char* retStr = (char*) malloc(sizeof(char)*(9 + strlen(tok)));
-				snprintf(retStr, 9 + strlen(tok), "deposit %s\0", tok); 
-				return retStr;
 			}
+			tok = strtok(NULL, " ");
+    
+			if(tok != NULL) {
+				if(strcmp(tok, "\n") == 0 || strcmp(tok, "\0") == 0 || strcmp(tok, "") == 0) {
+					return NULL;
+				}
+				if(isNumeric(tok) == 0) {
+					return NULL;
+				} 
+					snprintf(retStr, 9 + strlen(tok), "deposit %s\0", tok); 
+					return retStr;
+			}
+
 		}
 
 		if(strcmp(tok, "withdraw") == 0) {
-			tok = strtok(NULL, " ");
-			if(isNumeric(tok) == 0) {
-				return NULL;
+			if(strlen(input) - strlen(tok) <= 2) {
+			return NULL;
 			}
-
+			tok = strtok(NULL, " ");
 			if(tok != NULL) {
-				char* retStr = (char*) malloc(sizeof(char)*(10 + strlen(tok)));
+				if(strcmp(tok, "\n") == 0 || strcmp(tok, "\0") == 0 || strcmp(tok, "") == 0) {
+					return NULL;
+				}
+				if(isNumeric(tok) == 0) {
+					return NULL;
+				}
 				snprintf(retStr, 10 + strlen(tok), "withdraw %s\0", tok); 
 				return retStr;
 			}
+
 		}
+
 		return NULL;
 	}
 	
