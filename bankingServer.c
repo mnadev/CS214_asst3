@@ -127,7 +127,7 @@ void* listenConnections(void* ptrListenSock){
 		pthread_t* newClientThread = (pthread_t*)malloc(sizeof(pthread_t));
 		//Setting up a timeout on recv calls so that client won't be perma-blocking (needed for implementation of signal handling)
 		struct timeval timeout;
-		timeout.tv_sec = 10;
+		timeout.tv_sec = 4;
 		int setSockOpts = setsockopt(*newSockConnection, SOL_SOCKET, SO_RCVTIMEO, (void*)&timeout,(socklen_t)(sizeof(timeout)));
 
 		pthread_create(newClientThread, createDetachAttr, clientSession, (void*)newSockConnection);	//TODO: Change thread args for when i decide if anything else needs to be sent in there.
@@ -159,7 +159,7 @@ void* clientSession(void* args){
 				send(clientSock, errorMes, 51, 0);
 			} else{
 				char endMes[] = "Ending current service session.\n";		//I may change this message to include account name being ended, but not a priority. Just looks nice is all
-				send(clientSock, endMes, 31, 0);
+				send(clientSock, endMes, 32, 0);
 				//Lock and unlock
 				pthread_mutex_lock(accountData->serviceLock);
 				accountData->inService = 0;
@@ -173,7 +173,7 @@ void* clientSession(void* args){
 			} else{
 				char* returnBalance = malloc(sizeof(char)*100);
 				memset(returnBalance, 0, 100);
-				snprintf(returnBalance, 100, "%f\n", accountData->balance);
+				snprintf(returnBalance, 100, "You currently have: $%f\n", accountData->balance);
 				send(clientSock, returnBalance, 100, 0);
 				free(returnBalance);
 			}
@@ -364,5 +364,7 @@ int main(int argc, char** argv){
 	diagnosticActive = 0;
 
 	pthread_join(*listenThread, NULL);
-	printf("\nServer shutting down.\n");
+	printf("\nServer shutdown in progress....\n");
+	sleep(5);
+	printf("Server shutdown complete\n");
 }
