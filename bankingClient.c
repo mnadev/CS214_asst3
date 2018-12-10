@@ -53,6 +53,17 @@ char* parseInput(char * input) {
 		return retStr;
 	}
 
+	if(strcmp(input,"create ") == 0) {
+		char * retStr = (char*) malloc(sizeof(char)*8);
+		snprintf(retStr, 8, "create \0"); 
+		return retStr;
+	}
+	
+	if(strcmp(input,"serve ") == 0) {
+		char * retStr = (char*) malloc(sizeof(char)*7);
+		snprintf(retStr, 7, "serve \0"); 
+		return retStr;
+	}
 	
 	if(strstr(input, " ") == NULL) {
 		return NULL;
