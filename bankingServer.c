@@ -68,7 +68,7 @@ void* signal_handler(void* args){
 						printf("\tNOT IN SERVICE\n");
 					}
 				}	
-
+				printf("\n\n");
 				diagnosticActive = 0;
 				sem_post(accountCreateLock);
 				pthread_cond_broadcast(&condVar);
@@ -148,7 +148,7 @@ void* clientSession(void* args){
 			pthread_cond_wait(&condVar, &dummyMutex);
 		}
 		int recvBytes = recv(clientSock, (void*)recvBuffer, 300, 0);	
-		printf("%s\n", recvBuffer);
+		//printf("%s\n", recvBuffer);	//Debug statement printing what is received from the server.
 		if(strcmp(recvBuffer, "quit") == 0){
 			char quitMes[] = "Quitting banking service. Have a nice day (≧ω≦)\n";
 			send(clientSock, quitMes, 53, 0);
