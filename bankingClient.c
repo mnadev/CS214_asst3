@@ -44,30 +44,35 @@ char* parseInput(char * input, int length) {
 	 
 	if(strcmp(input,"query") == 0) {
 		char * retStr = (char*) malloc(sizeof(char)*6);
+		memset(retStr, 0, 6);
 		snprintf(retStr, 6, "query\0"); 
 		return retStr;
 	}
 		
 	if(strcmp(input, "end") == 0){
 		char * retStr = (char*) malloc(sizeof(char)*4);
+		memset(retStr, 0, 4);
 		snprintf(retStr, 4, "end\0");
 		return retStr;
 	}
 
 	if(strcmp(input, "quit") == 0) {
 		char * retStr = (char*) malloc(sizeof(char)*4);
+		memset(retStr, 0, 6);
 		snprintf(retStr, 5, "quit\0"); 
 		return retStr;
 	}
 
 	if(strcmp(input,"create ") == 0) {
 		char * retStr = (char*) malloc(sizeof(char)*8);
+		memset(retStr, 0, 6);
 		snprintf(retStr, 8, "create \0"); 
 		return retStr;
 	}
 	
 	if(strcmp(input,"serve ") == 0) {
 		char * retStr = (char*) malloc(sizeof(char)*7);
+		memset(retStr, 0, 6);
 		snprintf(retStr, 7, "serve \0"); 
 		return retStr;
 	}
@@ -188,6 +193,7 @@ void* get_and_send(void *sf_p) {
 	while(shutdownMess == 0) {
 		// get input from user, maybe chnage fgets but not sure.
 		char * input = (char*) malloc(sizeof(char) * 300);
+		memset(input, 0, 300*sizeof(char));
 		// parse the input, and keep asking for input until we get something
 		char* parsedInput = NULL;
 		do{
