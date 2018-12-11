@@ -116,7 +116,7 @@ char* parseInput(char * input, int length) {
 
 
 		if(strcmp(tok, "deposit") == 0) {
-			if(length - strlen(tok) <= 2) {
+			if(length - strlen(tok) <= 1) {
 				return NULL;
 			}
 			if(strstr(copy, "  ") != NULL) {
@@ -138,7 +138,7 @@ char* parseInput(char * input, int length) {
 		}
 
 		if(strcmp(tok, "withdraw") == 0) {
-			if(length - strlen(tok) <= 2) {
+			if(length - strlen(tok) <= 1) {
 				return NULL;
 			}
 	
