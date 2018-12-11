@@ -40,6 +40,7 @@ void* signal_handler(void* args){
 		switch(sigCaught){
 			case SIGINT:
 				stopAndHammerTime = 1;
+				sem_wait(accountCreateLock);
 				close(*(theArgs->listenSockFD));
 				pthread_cancel(*(theArgs->listenThread));
 				pthread_exit(0);
@@ -127,7 +128,7 @@ void* listenConnections(void* ptrListenSock){
 		pthread_t* newClientThread = (pthread_t*)malloc(sizeof(pthread_t));
 		//Setting up a timeout on recv calls so that client won't be perma-blocking (needed for implementation of signal handling)
 		struct timeval timeout;
-		timeout.tv_sec = 4;
+		timeout.tv_sec = 3;
 		int setSockOpts = setsockopt(*newSockConnection, SOL_SOCKET, SO_RCVTIMEO, (void*)&timeout,(socklen_t)(sizeof(timeout)));
 
 		pthread_create(newClientThread, createDetachAttr, clientSession, (void*)newSockConnection);	//TODO: Change thread args for when i decide if anything else needs to be sent in there.
@@ -161,6 +162,9 @@ void* clientSession(void* args){
 			memset(recvBuffer, 0, 300);	//Purging recvBuffer in preparation of receiving next command.
 			break; 
 		} else if(strcmp(recvBuffer, "end") == 0){
+			if(stopAndHammerTime == 1){
+				break;
+			}
 			if(inSession == 0){
 				char errorMes[] = "Error: You are not currently in a service session.\n";
 				send(clientSock, errorMes, 51, 0);
@@ -194,6 +198,9 @@ void* clientSession(void* args){
 				send(clientSock, errorMes, 82, 0);
 				memset(recvBuffer, 0, 300);	//Purging recvBuffer in preparation of receiving next command.
 				continue;
+			}
+			if(stopAndHammerTime == 1){
+				break;
 			}
 			//Checking if new account name is already in hash table:
 			char* paramName = strstr(recvBuffer, " ") + 1;
@@ -231,6 +238,9 @@ void* clientSession(void* args){
 				send(clientSock, createMes, 30, 0);
 			}
 		} else if(strncmp(recvBuffer, "serve ", 6) == 0){
+			if(stopAndHammerTime == 1){
+				break;
+			}
 			if(inSession != 0){
 				char errorMes[] = "Error: An account is already being serviced.\n";
 				send(clientSock, errorMes, 46, 0);
@@ -264,6 +274,9 @@ void* clientSession(void* args){
 				}
 			}
 		} else if(strncmp(recvBuffer, "deposit ", 8) == 0){
+			if(stopAndHammerTime == 1){
+				break;
+			}
 			if(inSession == 0){
 				char errorMes[] = "Error: You are not currently in a service session.\n";
 				send(clientSock, errorMes, 51, 0);	
@@ -279,6 +292,9 @@ void* clientSession(void* args){
 				send(clientSock, depositMes, 30, 0);
 			}
 		} else if(strncmp(recvBuffer, "withdraw ", 9) == 0){
+			if(stopAndHammerTime == 1){
+				break;
+			}
 			if(inSession == 0){
 				char errorMes[] = "Error: You are not currently in a service session.\n";
 				send(clientSock, errorMes, 51, 0);
