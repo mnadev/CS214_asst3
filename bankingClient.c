@@ -100,10 +100,13 @@ char* parseInput(char * input, int length) {
 			if(length - strlen(tok) <= 2) {
 				return NULL;
 			}
+			if(strstr(copy, "  ") != NULL) {
+				return NULL;
+			}
+			
 			tok = strtok(NULL, " ");
-    
 			if(tok != NULL) {
-				if(strcmp(tok, "\n") == 0 || strcmp(tok, "\0") == 0 || strcmp(tok, "") == 0) {
+				if((*tok) ==  '\n' || (*tok) ==  '\0') {
 					return NULL;
 				}
 				if(isNumeric(tok) == 0) {
@@ -119,9 +122,19 @@ char* parseInput(char * input, int length) {
 			if(length - strlen(tok) <= 2) {
 				return NULL;
 			}
+	
+			if(strstr(copy, "  ") != NULL) {
+				return NULL;
+			}		
+
 			tok = strtok(NULL, " ");
+
+			if(strstr(tok, " ") != NULL) {
+				return NULL;
+			}
+
 			if(tok != NULL) {
-				if(strcmp(tok, "\n") == 0 || strcmp(tok, "\0") == 0 || strcmp(tok, "") == 0) {
+				if(*tok == '\n' || *tok ==  '\0' || *tok == ' ') {
 					return NULL;
 				}
 				if(isNumeric(tok) == 0) {
@@ -189,15 +202,14 @@ void* get_and_send(void *sf_p) {
 				}
 			}
 		} while(parsedInput == NULL);
-
 		if(strcmp(parsedInput, "quit") == 0){
 			shutdownMess = 1;
 		}
 		// write to server
 		send(socketF,parsedInput, strlen(parsedInput), 0);
+		
 		free(input);
-	//	usleep(2000);
-		sleep(2000);
+		sleep(2);
 	}
 	
 	pthread_exit(0);
@@ -253,6 +265,7 @@ int main(int argc, char** argv) {
 	while (try_conn < 0) {
 		try_conn = connect(socketF, ptrAI -> ai_addr, ptrAI -> ai_addrlen);
 	}
+	write(STDOUT, "Successfully Connected.\n", 24);
 	get_thread = (pthread_t*)malloc(sizeof(pthread_t)); 
 	print_thread = (pthread_t*)malloc(sizeof(pthread_t)); 
 	pthread_create(get_thread, NULL, get_and_send, (void*)&socketF);
