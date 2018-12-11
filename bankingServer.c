@@ -286,6 +286,12 @@ void* clientSession(void* args){
 			}				
 		} else if(recvBytes == 0){
 			printf("Connection terminated.\n");
+			if(inSession == 1){
+				pthread_mutex_lock(accountData->serviceLock);
+				accountData->inService = 0;
+				pthread_mutex_unlock(accountData->serviceLock);
+				inSession = 0;	
+			}
 			break;
 		} else if(recvBytes == -1){
 			continue;
