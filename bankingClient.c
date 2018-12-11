@@ -13,9 +13,19 @@
 #define STDERR 2
 
 int shutdownMess = 0;
-
 pthread_t* get_thread; 
 pthread_t* print_thread; 
+int socketF;
+
+
+void exitsend(int sig){
+	send(socketF, "quit\0", 5, 0);	
+	shutdownMess = 1;
+	write(STDOUT, "Bye.\n", 5);
+	pthread_cancel(*get_thread);
+	pthread_cancel(*print_thread);
+}
+
 
 int isNumeric(char * string){
 	while(*string != '\0' || *string != '\n'){
@@ -63,17 +73,21 @@ char* parseInput(char * input, int length) {
 		return retStr;
 	}
 
-	if(strcmp(input,"create ") == 0) {
-		char * retStr = (char*) malloc(sizeof(char)*8);
-		memset(retStr, 0, 6);
-		snprintf(retStr, 8, "create \0"); 
+	if(strcmp(input,"create ") == 0 || strcmp(input, "serve ") ==0) {
+		return NULL;
+	}
+
+	if(strcmp(input,"create  ") == 0) {
+		char * retStr = (char*) malloc(sizeof(char)*9);
+		memset(retStr, 0, 9);
+		snprintf(retStr, 9, "create  \0"); 
 		return retStr;
 	}
 	
-	if(strcmp(input,"serve ") == 0) {
-		char * retStr = (char*) malloc(sizeof(char)*7);
-		memset(retStr, 0, 6);
-		snprintf(retStr, 7, "serve \0"); 
+	if(strcmp(input,"serve  ") == 0) {
+		char * retStr = (char*) malloc(sizeof(char)*8);
+		memset(retStr, 0, 8);
+		snprintf(retStr, 8, "serve  \0"); 
 		return retStr;
 	}
 	
@@ -159,7 +173,7 @@ char* parseInput(char * input, int length) {
 }
 
 void* get_and_print(void *sf_p) {
-	int socketF = *( (int * ) sf_p);
+	//int socketF = *( (int * ) sf_p);
 	while(shutdownMess == 0) {
 		
 		// get input from server, idk how big message will be so i set it at 1000 chars
@@ -188,7 +202,7 @@ void* get_and_print(void *sf_p) {
 }
 
 void* get_and_send(void *sf_p) {
-	int socketF = *( ( int * ) sf_p);
+	//int socketF = *( ( int * ) sf_p);
 	// get input and do stuff
 	while(shutdownMess == 0) {
 		// get input from user, maybe chnage fgets but not sure.
@@ -226,7 +240,6 @@ int main(int argc, char** argv) {
 		write(STDERR, "Illegal number of arguments.\n",29);
 		return -1;
 	}
-	
 	//TODO: make the command line arguments location independent
 	//getting command line args
 	char * machineName = argv[1];
@@ -254,7 +267,7 @@ int main(int argc, char** argv) {
 	}
 	
 	// create socket descriptor
-	int socketF = socket(ptrAI -> ai_family, ptrAI -> ai_socktype, ptrAI -> ai_protocol);
+	socketF = socket(ptrAI -> ai_family, ptrAI -> ai_socktype, ptrAI -> ai_protocol);
 	while(socketF < 0) {
 		socketF = socket(ptrAI -> ai_family, ptrAI -> ai_socktype, ptrAI -> ai_protocol);
 	}	
@@ -271,6 +284,7 @@ int main(int argc, char** argv) {
 	while (try_conn < 0) {
 		try_conn = connect(socketF, ptrAI -> ai_addr, ptrAI -> ai_addrlen);
 	}
+	signal(SIGINT, exitsend);
 	write(STDOUT, "Successfully Connected.\n", 24);
 	get_thread = (pthread_t*)malloc(sizeof(pthread_t)); 
 	print_thread = (pthread_t*)malloc(sizeof(pthread_t)); 
