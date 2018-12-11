@@ -212,6 +212,13 @@ void* get_and_send(void *sf_p) {
 		char* parsedInput = NULL;
 		do{
 			fgets(input, 300, stdin);
+			char * t;
+           		if(t = strchr(input, '\n')){
+               			 *t = 0;
+            		} else {
+                		scanf("%*[^\n]");
+				scanf("%*c");
+            		}
 			if(shutdownMess == 1) {
 				pthread_exit(0);
 			}
