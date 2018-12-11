@@ -152,6 +152,7 @@ void* clientSession(void* args){
 		if(strcmp(recvBuffer, "quit") == 0){
 			char quitMes[] = "Quitting banking service. Have a nice day (≧ω≦)\n";
 			send(clientSock, quitMes, 53, 0);
+			memset(recvBuffer, 0, 300);	//Purging recvBuffer in preparation of receiving next command.
 			break; 
 		} else if(strcmp(recvBuffer, "end") == 0){
 			if(inSession == 0){
@@ -298,8 +299,10 @@ void* clientSession(void* args){
 				pthread_mutex_unlock(accountData->serviceLock);
 				inSession = 0;	
 			}
+			memset(recvBuffer, 0, 300);	//Purging recvBuffer in preparation of receiving next command.
 			break;
 		} else if(recvBytes == -1){
+			memset(recvBuffer, 0, 300);	//Purging recvBuffer in preparation of receiving next command.
 			continue;
 		} else{
 			//Really should never get here if client is sanitizing commands, but in case server/client messed up:
@@ -308,7 +311,7 @@ void* clientSession(void* args){
 			printf("%s\n", recvBuffer);
 			send(clientSock, errorMsg, 68, 0);
 		}
-		memset(recvBuffer, 0, 300);	//Purging recvBuffer in preparation of receiving next command.
+		memset(recvBuffer, 0, 300);	//Purging recvBuffer in preparation of receiving next command.		memset(recvBuffer, 0, 300);	//Purging recvBuffer in preparation of receiving next command.
 	}
 	//When the loop breaks, server will send message to client and close the socket.
 	char shutdownMes[] = "Server shutting down. Terminating Connection.";
