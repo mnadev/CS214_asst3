@@ -61,7 +61,7 @@ void* signal_handler(void* args){
 					// get account from hash table
 					accEntry = hsearch(keySearch, FIND);
 					Account* curr_account = (Account*)(accEntry->data);
-					printf("%s\t%f", curr_account -> name, curr_account -> balance);
+					printf("\"%s\"\t%f", curr_account -> name, curr_account -> balance);
 					if((curr_account -> inService) != 0) {
 						printf("\tIN SERVICE\n");
 					} else{
@@ -182,6 +182,11 @@ void* clientSession(void* args){
 			if(strlen(recvBuffer) < 8){
 				continue;
 			}
+			if(inSession == 1){
+				char errorMes[] = "Error: You are already in a service session. Please 'end' to create an account.\n";
+				send(clientSock, errorMes, 82, 0);
+				continue;
+			}
 			//Checking if new account name is already in hash table:
 			char* paramName = strstr(recvBuffer, " ") + 1;
 			ENTRY testKey, *testEntry;
@@ -221,6 +226,7 @@ void* clientSession(void* args){
 			if(inSession != 0){
 				char errorMes[] = "Error: An account is already being serviced.\n";
 				send(clientSock, errorMes, 46, 0);
+				memset(recvBuffer, 0, 300);	//Purging recvBuffer in preparation of receiving next command.
 			} else{
 				//Anti-segfault precaution:
 				if(strlen(recvBuffer) < 7){
