@@ -28,15 +28,35 @@ void exitsend(int sig){
 
 
 int isNumeric(char * string){
+	
+	int decimal_occur = 0;
+	int int_occur_after = 0;
+	
 	while(*string != '\0' || *string != '\n'){
 		if(*string == '\0' || *string == '\n') {
 			break;
 		}
+		if(*string == '.') {
+			if(decimal_occur == 1) {
+				return 0;
+			}
+			decimal_occur = 1;
+		}
+		if(isdigit(*string) != 0) {
+			if(decimal_occur == 1) {
+				int_occur_after = 1;
+			}
+		}
+	
 		if(isdigit(*string) == 0 && *string != '.') {
 			return 0;
 		}
 		string++;
 	}
+	if(decimal_occur == 1 && int_occur_after == 0) {
+		return 0;
+	}
+	
 	return 1;
 }
 
@@ -125,14 +145,21 @@ char* parseInput(char * input, int length) {
 			
 			tok = strtok(NULL, " ");
 			if(tok != NULL) {
+				
+				
+
 				if((*tok) ==  '\n' || (*tok) ==  '\0') {
 					return NULL;
 				}
 				if(isNumeric(tok) == 0) {
 					return NULL;
 				} 
-					snprintf(retStr, 9 + strlen(tok), "deposit %s\0", tok); 
-					return retStr;
+				snprintf(retStr, 9 + strlen(tok), "deposit %s\0", tok); 
+				tok = strtok(NULL, " ");
+				if(tok != NULL) {
+					return NULL;
+				}
+				return retStr;
 			}
 
 		}
@@ -141,7 +168,6 @@ char* parseInput(char * input, int length) {
 			if(length - strlen(tok) <= 1) {
 				return NULL;
 			}
-	
 			if(strstr(copy, "  ") != NULL) {
 				return NULL;
 			}		
@@ -153,6 +179,7 @@ char* parseInput(char * input, int length) {
 			}
 
 			if(tok != NULL) {
+
 				if(*tok == '\n' || *tok ==  '\0' || *tok == ' ') {
 					return NULL;
 				}
@@ -160,6 +187,10 @@ char* parseInput(char * input, int length) {
 					return NULL;
 				}
 				snprintf(retStr, 10 + strlen(tok), "withdraw %s\0", tok); 
+				tok = strtok(NULL, " ");
+				if(tok != NULL) {
+					return NULL;
+				}
 				return retStr;
 			}
 
@@ -211,6 +242,7 @@ void* get_and_send(void *sf_p) {
 		// parse the input, and keep asking for input until we get something
 		char* parsedInput = NULL;
 		do{
+			fflush(stdin);
 			fgets(input, 300, stdin);
 			char * t;
            		if(t = strchr(input, '\n')){
