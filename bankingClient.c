@@ -317,7 +317,7 @@ int main(int argc, char** argv) {
 		write(STDERR, "Failed at binding, exiting now.\n", 34);
 		return -1;
 	}*/
-	
+	write(STDOUT, "Attempting to connect.\n", 24);	
 	// try to connect to socket, prob wont work
 	int try_conn = connect(socketF, ptrAI -> ai_addr, ptrAI -> ai_addrlen);
 	while (try_conn < 0) {
