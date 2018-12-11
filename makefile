@@ -1,9 +1,9 @@
-make all:
+all:
 	gcc bankingServer.c -pthread -o bankingServer
 	gcc bankingClient.c -pthread -o bankingClient
-make debug:
+debug:
 	gcc bankingServer.c -g -pthread -o debugServer
 	gcc bankingClient.c -g -o debugClient
-make clean:
+clean:
 	rm bankingClient
 	rm bankingServer
