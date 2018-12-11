@@ -220,7 +220,7 @@ void* clientSession(void* args){
 		} else if(strncmp(recvBuffer, "serve ", 6) == 0){
 			if(inSession != 0){
 				char errorMes[] = "Error: An account is already being serviced.\n";
-				send(clientSock, errorMes, 45, 0);
+				send(clientSock, errorMes, 46, 0);
 			} else{
 				//Anti-segfault precaution:
 				if(strlen(recvBuffer) < 7){
@@ -232,11 +232,11 @@ void* clientSession(void* args){
 				hashEntry = hsearch(searchAcc, FIND);
 				if(hashEntry == NULL){
 					char errorMes[] = "Error: Account requested is not in database. Please create account first.\n";
-					send(clientSock, errorMes, 74, 0);
+					send(clientSock, errorMes, 75, 0);
 				} else{
 					if( ((Account*)(hashEntry->data))->inService == 1 ){	//account already in session:
 						char errorMes[] = "Error: Account requested is currently in service. Please try again later.\n";
-						send(clientSock, errorMes, 73, 0);				
+						send(clientSock, errorMes, 74, 0);				
 					} else{
 						accountData = (Account*)(hashEntry->data);
 						//Lock serviceLock to prevent race condition.
@@ -357,7 +357,7 @@ int main(int argc, char** argv){
 	args->listenThread = listenThread;
 	pthread_create(sigHandler, createDetachAttr, signal_handler, (void*)args);
 	
-	//The code below will be timer set up code.
+	printf("Banking server has started up.\n");
 
 	//Starting timer:
 	setitimer(ITIMER_REAL, &timer, 0);
