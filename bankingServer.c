@@ -152,6 +152,12 @@ void* clientSession(void* args){
 		if(strcmp(recvBuffer, "quit") == 0){
 			char quitMes[] = "Quitting banking service. Have a nice day (≧ω≦)\n";
 			send(clientSock, quitMes, 53, 0);
+			if(inSession == 1){
+				pthread_mutex_lock(accountData->serviceLock);
+				accountData->inService = 0;
+				pthread_mutex_unlock(accountData->serviceLock);
+				inSession = 0;
+			}		
 			memset(recvBuffer, 0, 300);	//Purging recvBuffer in preparation of receiving next command.
 			break; 
 		} else if(strcmp(recvBuffer, "end") == 0){
@@ -186,6 +192,7 @@ void* clientSession(void* args){
 			if(inSession == 1){
 				char errorMes[] = "Error: You are already in a service session. Please 'end' to create an account.\n";
 				send(clientSock, errorMes, 82, 0);
+				memset(recvBuffer, 0, 300);	//Purging recvBuffer in preparation of receiving next command.
 				continue;
 			}
 			//Checking if new account name is already in hash table:
